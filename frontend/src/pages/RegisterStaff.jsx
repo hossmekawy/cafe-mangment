@@ -2,6 +2,7 @@ import { useState } from 'react';
 import useAuthStore from '../store/authStore';
 import axiosInstance from '../api/axiosInstance';
 import { FiSave, FiUploadCloud, FiUser } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 const RegisterStaff = () => {
   const [formData, setFormData] = useState({
@@ -14,8 +15,6 @@ const RegisterStaff = () => {
   });
   
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,7 +26,7 @@ const RegisterStaff = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB restriction
-          setError("File cannot be larger than 2MB.");
+          toast.error("File cannot be larger than 2MB.");
           return;
       }
       const reader = new FileReader();
@@ -41,8 +40,8 @@ const RegisterStaff = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage('');
-    setError('');
+    
+    const loadingToast = toast.loading('Registering staff...');
 
     try {
       // The backend expects password to be at least 8 chars if provided, 
@@ -53,14 +52,15 @@ const RegisterStaff = () => {
       const res = await axiosInstance.post('/auth/admin/users/create/', payload);
       
       if (res.data.success) {
-          setMessage(`Staff account ${formData.username} created successfully!`);
+          toast.success(`Staff account ${formData.username} created!`);
           setFormData({
               username: '', name: '', password: '', role: 'cashier', pin: '', avatar: ''
           });
       }
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed. Check if username or PIN is valid.");
+      toast.error(err.response?.data?.detail || "Registration failed. Check if username or PIN is valid.");
     } finally {
+      toast.dismiss(loadingToast);
       setIsLoading(false);
     }
   };
@@ -73,9 +73,6 @@ const RegisterStaff = () => {
           </h1>
           <p className="text-textMuted mt-1">Create accounts for cashiers, waiters, and managers.</p>
       </div>
-
-      {message && <div className="bg-secondary/20 text-secondary p-4 rounded-lg border border-secondary/30">{message}</div>}
-      {error && <div className="bg-danger/20 text-danger p-4 rounded-lg border border-danger/30">{error}</div>}
 
       <form onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 space-y-8">
         

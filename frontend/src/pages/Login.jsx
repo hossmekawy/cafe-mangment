@@ -3,13 +3,13 @@ import useAuthStore from '../store/authStore';
 import useSettingsStore from '../store/settingsStore';
 import { useNavigate } from 'react-router-dom';
 import { FiLock, FiUser, FiCoffee } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [isPinMode, setIsPinMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { login, pinLogin } = useAuthStore();
@@ -23,30 +23,36 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     let res;
+    let loadingToast = toast.loading('Authenticating...');
+
     if (isPinMode) {
         if (!pin || !username) {
-            setError("Username and PIN are required.");
+            toast.dismiss(loadingToast);
+            toast.error("Username and PIN are required.");
             setLoading(false);
             return;
         }
         res = await pinLogin(username, pin);
     } else {
         if (!password || !username) {
-            setError("Username and password are required.");
+            toast.dismiss(loadingToast);
+            toast.error("Username and password are required.");
             setLoading(false);
             return;
         }
         res = await login(username, password);
     }
 
+    toast.dismiss(loadingToast);
     setLoading(false);
+    
     if (res?.success) {
+      toast.success("Welcome back!");
       navigate('/');
     } else {
-      setError(res?.error || 'Failed to login');
+      toast.error(res?.error || 'Failed to login');
     }
   };
 
@@ -75,11 +81,6 @@ const Login = () => {
         </div>
 
         <form className="mt-8 space-y-6 relative" onSubmit={handleLogin}>
-          {error && (
-            <div className="bg-danger/20 border border-danger/50 text-danger px-4 py-3 rounded-lg text-sm font-medium text-center animate-slide-up">
-              {error}
-            </div>
-          )}
           
           <div className="space-y-4">
             <div className="relative">
@@ -151,7 +152,6 @@ const Login = () => {
                 type="button"
                 onClick={() => {
                     setIsPinMode(!isPinMode);
-                    setError('');
                     setPin('');
                     setPassword('');
                 }}

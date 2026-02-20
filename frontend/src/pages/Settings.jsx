@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import useSettingsStore from '../store/settingsStore';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUploadCloud } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 const Settings = () => {
-  const { settings, fetchSettings, updateSettings, isLoading, error } = useSettingsStore();
+  const { settings, fetchSettings, updateSettings, isLoading } = useSettingsStore();
   const [formData, setFormData] = useState({});
-  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -43,11 +43,15 @@ const Settings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuccessMsg('');
+    const loadingToast = toast.loading('Saving settings...');
+    
     const res = await updateSettings(formData);
+    
+    toast.dismiss(loadingToast);
     if (res.success) {
-      setSuccessMsg('Settings updated successfully!');
-      setTimeout(() => setSuccessMsg(''), 3000);
+      toast.success('Settings updated successfully!');
+    } else {
+      toast.error(res.error || 'Failed to update settings');
     }
   };
 
@@ -63,9 +67,6 @@ const Settings = () => {
           </h1>
           <p className="text-textMuted mt-1">Manage cafe preferences, branding, and taxes.</p>
       </div>
-
-      {error && <div className="bg-danger/20 text-danger p-4 rounded-lg border border-danger/30">{error}</div>}
-      {successMsg && <div className="bg-secondary/20 text-secondary p-4 rounded-lg border border-secondary/30">{successMsg}</div>}
 
       <form onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 space-y-8">
             

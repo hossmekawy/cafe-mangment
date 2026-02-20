@@ -6,10 +6,28 @@ import DashboardLayout from './components/DashboardLayout';
 import RegisterStaff from './pages/RegisterStaff';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <BrowserRouter>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          className: 'glass-panel text-sm font-medium border border-white/10',
+          style: {
+            background: 'rgba(15, 23, 42, 0.8)',
+            color: '#fff',
+            backdropFilter: 'blur(12px)',
+          },
+          success: {
+            iconTheme: { primary: '#10B981', secondary: '#fff' },
+          },
+          error: {
+            iconTheme: { primary: '#EF4444', secondary: '#fff' },
+          },
+        }}
+      />
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />

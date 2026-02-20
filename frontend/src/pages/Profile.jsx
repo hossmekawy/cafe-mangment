@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
 import axiosInstance from '../api/axiosInstance';
 import { FiSave, FiUser, FiUploadCloud } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 const Profile = () => {
     const { user, fetchUser } = useAuthStore();
@@ -16,8 +17,6 @@ const Profile = () => {
     });
     
     const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -42,7 +41,7 @@ const Profile = () => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 2 * 1024 * 1024) {
-                setError("File cannot be larger than 2MB.");
+                toast.error("File cannot be larger than 2MB.");
                 return;
             }
             const reader = new FileReader();
@@ -56,45 +55,46 @@ const Profile = () => {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        setMessage('');
-        setError('');
+        const loadingToast = toast.loading('Updating profile...');
 
         try {
             const res = await axiosInstance.patch('/auth/me/', formData);
             if (res.data.success) {
-                setMessage('Profile updated successfully!');
+                toast.success('Profile updated successfully!');
                 fetchUser(); // Refresh global user state
             }
         } catch (err) {
-            setError(err.response?.data?.detail || "Failed to update profile.");
+            toast.error(err.response?.data?.detail || "Failed to update profile.");
         } finally {
+            toast.dismiss(loadingToast);
             setIsLoading(false);
         }
     };
 
     const handleUpdatePassword = async (e) => {
         e.preventDefault();
-        setMessage('');
-        setError('');
 
         if (passwords.new_password !== passwords.confirm_password) {
-            setError("New passwords do not match!");
+            toast.error("New passwords do not match!");
             return;
         }
 
         setIsLoading(true);
+        const loadingToast = toast.loading('Changing password...');
+
         try {
             const res = await axiosInstance.patch('/auth/password/change/', {
                 old_password: passwords.old_password,
                 new_password: passwords.new_password
             });
             if (res.data.success) {
-                setMessage('Password updated successfully!');
+                toast.success('Password updated successfully!');
                 setPasswords({ old_password: '', new_password: '', confirm_password: '' });
             }
         } catch (err) {
-            setError(err.response?.data?.detail || "Failed to update password.");
+            toast.error(err.response?.data?.detail || "Failed to update password.");
         } finally {
+            toast.dismiss(loadingToast);
             setIsLoading(false);
         }
     };
@@ -107,9 +107,6 @@ const Profile = () => {
                 </h1>
                 <p className="text-textMuted mt-1">Manage your account details and security.</p>
             </div>
-
-            {message && <div className="bg-secondary/20 text-secondary p-4 rounded-lg border border-secondary/30">{message}</div>}
-            {error && <div className="bg-danger/20 text-danger p-4 rounded-lg border border-danger/30">{error}</div>}
 
             {/* Profile Info Form */}
             <form onSubmit={handleUpdateProfile} className="glass-panel p-6 md:p-8 space-y-8">

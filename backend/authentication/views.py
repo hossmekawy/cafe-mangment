@@ -154,6 +154,7 @@ class MeView(generics.RetrieveUpdateAPIView):
         if serializer.is_valid():
             self.perform_update(serializer)
             return Response({"success": True, "data": serializer.data, "message": "Profile updated"})
+        print("Serializer Errors:", serializer.errors)
         return Response({"success": False, "error": "VALIDATION_ERROR", "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 

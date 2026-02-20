@@ -52,7 +52,9 @@ axiosInstance.interceptors.response.use(
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         // We will handle the redirect to /login inside the AuthStore or a Router wrapper
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }

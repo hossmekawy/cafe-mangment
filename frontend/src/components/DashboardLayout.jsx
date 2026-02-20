@@ -4,7 +4,9 @@ import useAuthStore from '../store/authStore';
 import useSettingsStore from '../store/settingsStore';
 import { 
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
-  FiMenu, FiX, FiUser, FiCoffee 
+  FiMenu, FiX, FiUser, FiCoffee,
+  FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
+  FiClipboard, FiTruck, FiList
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
@@ -25,8 +27,39 @@ const DashboardLayout = () => {
     navigate('/login');
   };
 
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [purchasingOpen, setPurchasingOpen] = useState(false);
+
+  // Auto-expand menus if child route is active
+  useEffect(() => {
+    if (window.location.pathname.includes('/inventory')) setInventoryOpen(true);
+    if (window.location.pathname.includes('/purchasing')) setPurchasingOpen(true);
+  }, []);
+
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: FiHome, show: true },
+    { 
+      name: 'Inventory', 
+      icon: FiBox, 
+      show: isAdminOrManager,
+      isOpen: inventoryOpen,
+      setIsOpen: setInventoryOpen,
+      subLinks: [
+        { name: 'Overview', path: '/inventory', icon: FiMenu },
+        { name: 'Raw Materials', path: '/inventory/materials', icon: FiList },
+      ]
+    },
+    { 
+      name: 'Purchasing', 
+      icon: FiShoppingCart, 
+      show: isAdminOrManager,
+      isOpen: purchasingOpen,
+      setIsOpen: setPurchasingOpen,
+      subLinks: [
+        { name: 'Suppliers', path: '/purchasing/suppliers', icon: FiTruck },
+        { name: 'Purchase Orders', path: '/purchasing/orders', icon: FiClipboard },
+      ]
+    },
     { name: 'Register Staff', path: '/register', icon: FiUserPlus, show: isAdminOrManager },
     { name: 'Global Settings', path: '/settings', icon: FiSettings, show: isAdminOrManager },
   ];
@@ -66,24 +99,69 @@ const DashboardLayout = () => {
             </button>
           </div>
           
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
             {navLinks.filter(link => link.show).map((link) => {
               const Icon = link.icon;
+              
+              if (link.subLinks) {
+                return (
+                  <div key={link.name} className="space-y-1">
+                    <button
+                      onClick={() => link.setIsOpen(!link.isOpen)}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-sm
+                        ${link.isOpen ? 'text-white font-semibold block' : 'text-textMuted hover:text-white hover:bg-white/5'}
+                      `}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Icon className="w-5 h-5" />
+                        <span>{link.name}</span>
+                      </div>
+                      {link.isOpen ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4" />}
+                    </button>
+                    
+                    {link.isOpen && (
+                      <div className="pl-10 pr-3 py-1 space-y-1">
+                        {link.subLinks.map(sub => (
+                          <NavLink
+                            key={sub.name}
+                            to={sub.path}
+                            end={sub.path === '/inventory'}
+                            onClick={() => setSidebarOpen(false)}
+                            className={({ isActive }) => `
+                              flex items-center space-x-3 px-3 py-2 rounded-md transition-colors text-sm
+                              ${isActive 
+                                ? 'bg-primary/20 text-primary font-medium' 
+                                : 'text-textMuted hover:text-white hover:bg-white/5'
+                              }
+                            `}
+                          >
+                            <sub.icon className="w-4 h-4" />
+                            <span>{sub.name}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <NavLink
                   key={link.name}
                   to={link.path}
+                  end={link.path === '/'}
+                  onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) => `
-                    flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors
+                    flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium
                     ${isActive 
-                      ? 'bg-primary/20 text-primary border border-primary/30' 
+                      ? 'bg-primary/20 text-primary' 
                       : 'hover:bg-white/5 text-textMuted hover:text-white'
                     }
                   `}
-                  onClick={() => setSidebarOpen(false)}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="font-medium">{link.name}</span>
+                  <span>{link.name}</span>
                 </NavLink>
               );
             })}

@@ -6,6 +6,10 @@ import DashboardLayout from './components/DashboardLayout';
 import RegisterStaff from './pages/RegisterStaff';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import RawMaterials from './pages/inventory/RawMaterials';
+import Suppliers from './pages/purchasing/Suppliers';
+import PurchaseOrders from './pages/purchasing/PurchaseOrders';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -42,6 +46,12 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
               <Route path="/settings" element={<Settings />} />
               <Route path="/register" element={<RegisterStaff />} />
+              
+              {/* Inventory & Purchasing */}
+              <Route path="/inventory" element={<InventoryDashboard />} />
+              <Route path="/inventory/materials" element={<RawMaterials />} />
+              <Route path="/purchasing/suppliers" element={<Suppliers />} />
+              <Route path="/purchasing/orders" element={<PurchaseOrders />} />
             </Route>
           </Route>
         </Route>

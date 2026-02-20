@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import useAuthStore from '../store/authStore';
 import axiosInstance from '../api/axiosInstance';
-import { FiSave, FiUploadCloud } from 'react-icons/fi';
+import { FiSave, FiUploadCloud, FiUser } from 'react-icons/fi';
 
 const RegisterStaff = () => {
   const [formData, setFormData] = useState({

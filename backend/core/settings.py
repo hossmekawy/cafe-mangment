@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     # Local apps
     'authentication',
     'settings',
+    'inventory',
+    'purchasing',
 ]
 
 MIDDLEWARE = [

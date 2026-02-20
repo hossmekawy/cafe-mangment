@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import DashboardLayout from './components/DashboardLayout';
 import RegisterStaff from './pages/RegisterStaff';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 
 function App() {
   return (

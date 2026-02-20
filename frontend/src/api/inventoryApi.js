@@ -3,7 +3,22 @@ import axiosInstance from './axiosInstance';
 export const inventoryApi = {
     // Units
     getUnits: () => axiosInstance.get('/inventory/units/'),
+    createUnit: (data) => axiosInstance.post('/inventory/units/', data),
+    updateUnit: (id, data) => axiosInstance.put(`/inventory/units/${id}/`, data),
+    deleteUnit: (id) => axiosInstance.delete(`/inventory/units/${id}/`),
     
+    // Unit Conversions
+    getConversions: () => axiosInstance.get('/inventory/conversions/'),
+    createConversion: (data) => axiosInstance.post('/inventory/conversions/', data),
+    updateConversion: (id, data) => axiosInstance.put(`/inventory/conversions/${id}/`, data),
+    deleteConversion: (id) => axiosInstance.delete(`/inventory/conversions/${id}/`),
+
+    // Products (Menu Items)
+    getProducts: () => axiosInstance.get('/inventory/products/'),
+    createProduct: (data) => axiosInstance.post('/inventory/products/', data),
+    updateProduct: (id, data) => axiosInstance.put(`/inventory/products/${id}/`, data),
+    deleteProduct: (id) => axiosInstance.delete(`/inventory/products/${id}/`),
+
     // Locations
     getLocations: () => axiosInstance.get('/inventory/locations/'),
     

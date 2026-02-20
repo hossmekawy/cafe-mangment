@@ -1,13 +1,23 @@
 from rest_framework import serializers
 from .models import (
-    Unit, StorageLocation, RawMaterial, StockBatch,
+    Unit, UnitConversion, StorageLocation, RawMaterial, StockBatch,
     WasteLog, StockMovement, PhysicalCount,
-    PhysicalCountItem, Recipe, RecipeIngredient, Notification
+    PhysicalCountItem, Product, Recipe, RecipeIngredient, Notification
 )
 
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
+        fields = '__all__'
+
+class UnitConversionSerializer(serializers.ModelSerializer):
+    from_unit_name = serializers.CharField(source='from_unit.name', read_only=True)
+    to_unit_name = serializers.CharField(source='to_unit.name', read_only=True)
+    from_unit_abbreviation = serializers.CharField(source='from_unit.abbreviation', read_only=True)
+    to_unit_abbreviation = serializers.CharField(source='to_unit.abbreviation', read_only=True)
+
+    class Meta:
+        model = UnitConversion
         fields = '__all__'
 
 class StorageLocationSerializer(serializers.ModelSerializer):
@@ -82,9 +92,15 @@ class PhysicalCountSerializer(serializers.ModelSerializer):
         model = PhysicalCount
         fields = '__all__'
 
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = '__all__'
+
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     raw_material_name = serializers.CharField(source='raw_material.name', read_only=True)
     unit_abbreviation = serializers.CharField(source='unit.abbreviation', read_only=True)
+    cost = serializers.DecimalField(source='get_cost', max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         model = RecipeIngredient
@@ -92,10 +108,15 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = RecipeIngredientSerializer(many=True, read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    total_cost = serializers.SerializerMethodField()
     
     class Meta:
         model = Recipe
         fields = '__all__'
+
+    def get_total_cost(self, obj):
+        return sum(ingredient.get_cost() for ingredient in obj.ingredients.all())
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:

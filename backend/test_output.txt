@@ -1,0 +1,326 @@
+﻿.\venv\Scripts\python.e
+xe : Creating test 
+database for alias 
+'default' ('file:memory
+db_default?mode=memory&
+cache=shared')...
+At line:1 char:1
++ .\venv\Scripts\python
+.exe manage.py test 
+inventory purchasing 
+--verbo ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Creating test   
+  d...che=shared').    
+..:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+
+Found 42 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: corsheaders, messages, rest_framework, rest_framework_simplejwt, staticfiles
+  Apply all migrations: admin, auth, authentication, contenttypes, inventory, purchasing, sessions, settings
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0001_initial... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying authentication.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying inventory.0001_initial... OK
+  Applying purchasing.0001_initial... OK
+  Applying inventory.0002_initial... OK
+  Applying sessions.0001_initial... OK
+test_material_list_with
+_many_rows (inventory.t
+ests.BulkDataSanityTest
+s) ... ok
+test_queryset_count_doe
+s_not_crash (inventory.
+tests.BulkDataSanityTes
+ts)
+Simply calling 
+.count() on large 
+tables should succeed. 
+... ok
+test_calculate_inventor
+y_value (inventory.test
+s.InventoryValueTests) 
+... ok
+test_inbound_movement_i
+ncreases_stock (invento
+ry.tests.LogStockMoveme
+ntTests) ... ok
+test_low_stock_notifica
+tion_triggered (invento
+ry.tests.LogStockMoveme
+ntTests)
+When stock drops below 
+minimum, a 
+Notification should be 
+created. ... ok
+test_movement_creates_a
+udit_trail (inventory.t
+ests.LogStockMovementTe
+sts) ... ok
+test_no_duplicate_low_s
+tock_notifications (inv
+entory.tests.LogStockMo
+vementTests)
+Multiple consecutive 
+drops should NOT 
+create duplicate 
+notifications. ... FAIL
+test_outbound_movement_
+decreases_stock (invent
+ory.tests.LogStockMovem
+entTests) ... ok
+test_cashier_cannot_cre
+ate_material (inventory
+.tests.MaterialAPITests
+)
+Role-based: cashiers 
+should be denied write 
+access. ... FAIL
+test_create_material (i
+nventory.tests.Material
+APITests) ... ok
+test_delete_material (i
+nventory.tests.Material
+APITests) ... ok
+test_list_materials (in
+ventory.tests.MaterialA
+PITests) ... ok
+test_low_stock_action (
+inventory.tests.Materia
+lAPITests)
+Test the custom 
+/materials/low_stock/ 
+action. ... ok
+test_update_material (i
+nventory.tests.Material
+APITests) ... ok
+test_double_reconciliat
+ion_raises_error (inven
+tory.tests.PhysicalCoun
+tTests) ... ok
+test_reconciliation_app
+lies_negative_discrepan
+cy (inventory.tests.Phy
+sicalCountTests) ... ok
+test_reconciliation_app
+lies_positive_discrepan
+cy (inventory.tests.Phy
+sicalCountTests) ... ok
+test_list_movements (in
+ventory.tests.StockMove
+mentAPITests) ... ok
+test_list_units (invent
+ory.tests.UnitAPITests)
+ ... ok
+test_waste_deducts_stoc
+k_and_creates_log (inve
+ntory.tests.WasteServic
+eTests) ... ok
+test_waste_log_linked_t
+o_stock_movement (inven
+tory.tests.WasteService
+Tests) ... ok
+test_complete_grn_auto_
+creates_invoice (purcha
+sing.tests.CompleteGRNS
+erviceTests)
+An unpaid 
+SupplierInvoice should 
+be auto-created. ... ok
+test_complete_grn_creat
+es_stock_batch (purchas
+ing.tests.CompleteGRNSe
+rviceTests)
+A new FIFO batch 
+should exist after 
+completion. ... ok
+test_complete_grn_creat
+es_stock_movement (purc
+hasing.tests.CompleteGR
+NServiceTests) ... ok
+test_complete_grn_incre
+ases_stock (purchasing.
+tests.CompleteGRNServic
+eTests)
+The most critical 
+test: completing a GRN 
+should add items to 
+inventory. ... ok
+test_complete_grn_marks
+_status (purchasing.tes
+ts.CompleteGRNServiceTe
+sts) ... ok
+test_complete_grn_updat
+es_material_cost (purch
+asing.tests.CompleteGRN
+ServiceTests)
+The material's 
+cost_per_unit should 
+be set to the GRN 
+item's unit_price. ... 
+ok
+test_double_complete_ra
+ises_error (purchasing.
+tests.CompleteGRNServic
+eTests) ... ok
+test_empty_grn_raises_e
+rror (purchasing.tests.
+CompleteGRNServiceTests
+) ... ok
+test_grn_fully_receivin
+g_po_marks_received (pu
+rchasing.tests.Complete
+GRNServiceTests) ... ok
+test_grn_with_po_update
+s_po_item_received_qty 
+(purchasing.tests.Compl
+eteGRNServiceTests)
+If GRN is linked to a 
+PO, the PO item's 
+quantity_received 
+should update. ... ok
+test_multi_item_grn (pu
+rchasing.tests.Complete
+GRNServiceTests)
+Multiple items in a 
+single GRN should all 
+be processed. ... ok
+test_complete_grn_via_a
+pi (purchasing.tests.GR
+NAPITests) ... ok
+test_list_grns (purchas
+ing.tests.GRNAPITests) 
+... ok
+test_no_history_on_same
+_price (purchasing.test
+s.PriceHistorySignalTes
+ts) ... ok
+test_price_change_creat
+es_history_entry (purch
+asing.tests.PriceHistor
+ySignalTests) ... ok
+test_cannot_confirm_non
+_draft (purchasing.test
+s.PurchaseOrderAPITests
+) ... ok
+test_confirm_draft_orde
+r (purchasing.tests.Pur
+chaseOrderAPITests) 
+... ok
+test_list_orders (purch
+asing.tests.PurchaseOrd
+erAPITests) ... ok
+test_cashier_cannot_cre
+ate_supplier (purchasin
+g.tests.SupplierAPITest
+s) ... ok
+test_create_supplier (p
+urchasing.tests.Supplie
+rAPITests) ... ok
+test_list_suppliers (pu
+rchasing.tests.Supplier
+APITests) ... ok
+
+=======================
+=======================
+=======================
+=
+FAIL: test_no_duplicate
+_low_stock_notification
+s (inventory.tests.LogS
+tockMovementTests)
+Multiple consecutive 
+drops should NOT 
+create duplicate 
+notifications.
+-----------------------
+-----------------------
+-----------------------
+-
+Traceback (most recent 
+call last):
+  File 
+"E:\projects\Cafe Syste
+m\backend\inventory\tes
+ts.py", line 110, in te
+st_no_duplicate_low_sto
+ck_notifications
+    self.assertEqual(no
+tifs.count(), 1)
+AssertionError: 2 != 1
+
+=======================
+=======================
+=======================
+=
+FAIL: test_cashier_cann
+ot_create_material (inv
+entory.tests.MaterialAP
+ITests)
+Role-based: cashiers 
+should be denied write 
+access.
+-----------------------
+-----------------------
+-----------------------
+-
+Traceback (most recent 
+call last):
+  File 
+"E:\projects\Cafe Syste
+m\backend\inventory\tes
+ts.py", line 223, in te
+st_cashier_cannot_creat
+e_material
+    self.assertIn(respo
+nse.status_code, [statu
+s.HTTP_403_FORBIDDEN, s
+tatus.HTTP_401_UNAUTHOR
+IZED])
+AssertionError: 201 
+not found in [403, 401]
+
+-----------------------
+-----------------------
+-----------------------
+-
+Ran 42 tests in 8.533s
+
+FAILED (failures=2)
+Destroying test 
+database for alias 
+'default' ('file:memory
+db_default?mode=memory&
+cache=shared')...
+
+  Applying settings.0001_initial... OK
+System check identified no issues (0 silenced).

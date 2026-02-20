@@ -8,6 +8,7 @@ import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import { purchasingApi } from '../../api/purchasingApi';
 import { inventoryApi } from '../../api/inventoryApi';
+import useSettingsStore from '../../store/settingsStore';
 
 const orderSchema = yup.object().shape({
   supplier: yup.string().required('Supplier is required'),
@@ -34,6 +35,8 @@ const PurchaseOrders = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [viewOrder, setViewOrder] = useState(null);
     const [confirmAction, setConfirmAction] = useState({ open: false, order: null, type: null });
+
+    const { settings } = useSettingsStore();
 
     const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm({
         resolver: yupResolver(orderSchema),
@@ -123,7 +126,7 @@ const PurchaseOrders = () => {
         },
         {
             header: 'Total Value',
-            accessorFn: row => `$${parseFloat(row.total_amount).toFixed(2)}`,
+            accessorFn: row => `${settings?.currency || '$'}${parseFloat(row.total_amount).toFixed(2)}`,
         },
         {
             header: 'Status',
@@ -160,7 +163,7 @@ const PurchaseOrders = () => {
                 </button>
             )
         }
-    ], []);
+    ], [settings]);
 
     return (
         <div className="p-6">
@@ -268,12 +271,12 @@ const PurchaseOrders = () => {
                                                 </div>
                                                 <div className="col-span-2">
                                                     <div className="relative">
-                                                        <span className="absolute left-2 top-1.5 text-textMuted">$</span>
-                                                        <input type="number" step="0.01" {...register(`items.${index}.unit_price`)} className="form-input pl-6 text-sm py-1.5 text-right" />
+                                                        <span className="absolute left-2 top-1.5 text-textMuted">{settings?.currency || '$'}</span>
+                                                        <input type="number" step="0.01" {...register(`items.${index}.unit_price`)} className="form-input pl-8 text-sm py-1.5 text-right" />
                                                     </div>
                                                 </div>
                                                 <div className="col-span-1 text-right text-sm font-mono text-accent">
-                                                    ${rowTotal}
+                                                    {settings?.currency || '$'}{rowTotal}
                                                 </div>
                                                 <div className="col-span-1 flex justify-center">
                                                     <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-300 p-1">
@@ -291,7 +294,7 @@ const PurchaseOrders = () => {
                                 <div className="text-right">
                                     <p className="text-textMuted text-sm mb-1">Estimated Total</p>
                                     <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-                                        ${totalAmount.toFixed(2)}
+                                        {settings?.currency || '$'}{totalAmount.toFixed(2)}
                                     </p>
                                 </div>
                             </div>
@@ -344,8 +347,8 @@ const PurchaseOrders = () => {
                                             <td className={`py-3 text-center font-bold ${item.quantity_received >= item.quantity_ordered ? 'text-green-400' : 'text-yellow-400'}`}>
                                                 {parseFloat(item.quantity_received)}
                                             </td>
-                                            <td className="py-3 text-right text-textMuted">${parseFloat(item.unit_price).toFixed(2)}</td>
-                                            <td className="py-3 text-right font-mono text-accent">${parseFloat(item.total_price).toFixed(2)}</td>
+                                            <td className="py-3 text-right text-textMuted">{settings?.currency || '$'}{parseFloat(item.unit_price).toFixed(2)}</td>
+                                            <td className="py-3 text-right font-mono text-accent">{settings?.currency || '$'}{parseFloat(item.total_price).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

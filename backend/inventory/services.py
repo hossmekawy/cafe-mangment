@@ -47,7 +47,7 @@ def check_low_stock(raw_material):
         notif_exists = Notification.objects.filter(
             title__icontains=raw_material.name,
             is_read=False,
-            message__icontains="low stock"
+            title__startswith="Low Stock Alert"
         ).exists()
         
         if not notif_exists:

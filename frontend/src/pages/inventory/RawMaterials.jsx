@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
+import Select from 'react-select';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
 import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import { inventoryApi } from '../../api/inventoryApi';
+import useSettingsStore from '../../store/settingsStore';
 
 const materialSchema = yup.object().shape({
   name: yup.string().required('Name is required'),
@@ -31,9 +33,51 @@ const RawMaterials = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { settings } = useSettingsStore();
+
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: yupResolver(materialSchema)
   });
+
+  const categoryOptions = [
+    { value: 'dairy', label: 'Dairy' },
+    { value: 'beverages', label: 'Beverages' },
+    { value: 'dry_goods', label: 'Dry Goods' },
+    { value: 'packaging', label: 'Packaging' },
+    { value: 'fresh_produce', label: 'Fresh Produce' },
+    { value: 'cleaning', label: 'Cleaning & Maintenance' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  const selectStyles = {
+    control: (base, state) => ({
+      ...base,
+      background: 'rgba(255, 255, 255, 0.05)',
+      borderColor: state.isFocused ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
+      color: '#fff',
+      minHeight: '40px',
+      boxShadow: 'none',
+      borderRadius: '0.5rem',
+      cursor: 'pointer',
+      '&:hover': { borderColor: 'rgba(255, 255, 255, 0.2)' }
+    }),
+    menu: (base) => ({
+      ...base,
+      background: '#1e293b',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '0.5rem',
+      zIndex: 100
+    }),
+    option: (base, state) => ({
+      ...base,
+      background: state.isSelected ? 'rgba(59, 130, 246, 0.3)' : state.isFocused ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+      color: state.isSelected ? '#fff' : '#cbd5e1',
+      cursor: 'pointer',
+      '&:active': { background: 'rgba(59, 130, 246, 0.4)' }
+    }),
+    singleValue: (base) => ({ ...base, color: '#fff' }),
+    input: (base) => ({ ...base, color: '#fff' })
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -139,7 +183,7 @@ const RawMaterials = () => {
     },
     {
       header: 'Unit Cost',
-      accessorFn: row => `$${parseFloat(row.cost_per_unit).toFixed(2)}`,
+      accessorFn: row => `${settings?.currency || '$'}${parseFloat(row.cost_per_unit).toFixed(2)}`,
     },
     {
       header: 'Actions',
@@ -165,7 +209,7 @@ const RawMaterials = () => {
         </div>
       )
     }
-  ], [units]);
+  ], [units, settings]);
 
   return (
     <div className="p-6">
@@ -206,25 +250,38 @@ const RawMaterials = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-textMuted mb-1">Category</label>
-                    <select {...register('category')} className="form-input">
-                        <option value="dairy">Dairy</option>
-                        <option value="beverages">Beverages</option>
-                        <option value="dry_goods">Dry Goods</option>
-                        <option value="packaging">Packaging</option>
-                        <option value="fresh_produce">Fresh Produce</option>
-                        <option value="cleaning">Cleaning & Maintenance</option>
-                        <option value="other">Other</option>
-                    </select>
+                    <Controller
+                      name="category"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          {...field}
+                          options={categoryOptions}
+                          styles={selectStyles}
+                          placeholder="Search Category..."
+                          value={categoryOptions.find(c => c.value === field.value)}
+                          onChange={val => field.onChange(val.value)}
+                        />
+                      )}
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-textMuted mb-1">Base Unit</label>
-                    <select {...register('unit')} className="form-input">
-                        <option value="">Select Unit...</option>
-                        {units.map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.abbreviation})</option>
-                        ))}
-                    </select>
+                    <Controller
+                      name="unit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          {...field}
+                          options={units.map(u => ({ value: u.id, label: `${u.name} (${u.abbreviation})` }))}
+                          styles={selectStyles}
+                          placeholder="Search Unit..."
+                          value={units.map(u => ({ value: u.id, label: `${u.name} (${u.abbreviation})` })).find(u => u.value === field.value)}
+                          onChange={val => field.onChange(val.value)}
+                        />
+                      )}
+                    />
                     {errors.unit && <span className="text-red-400 text-xs">{errors.unit.message}</span>}
                   </div>
 
@@ -240,7 +297,7 @@ const RawMaterials = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-textMuted mb-1">Base Cost ($)</label>
+                    <label className="block text-sm font-medium text-textMuted mb-1">Base Cost ({settings?.currency || '$'})</label>
                     <input type="number" step="0.01" {...register('cost_per_unit')} className="form-input" />
                   </div>
 

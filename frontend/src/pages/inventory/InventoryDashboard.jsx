@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiTrendingDown, FiAlertCircle, FiDollarSign, FiBox } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiTrendingDown, FiAlertCircle, FiDollarSign, FiBox, FiPlus } from 'react-icons/fi';
 import { inventoryApi } from '../../api/inventoryApi';
 import { purchasingApi } from '../../api/purchasingApi';
+import useSettingsStore from '../../store/settingsStore';
 
 const InventoryDashboard = () => {
     const [metrics, setMetrics] = useState({
@@ -11,6 +13,9 @@ const InventoryDashboard = () => {
         recentMovements: []
     });
     const [isLoading, setIsLoading] = useState(true);
+    const navigate = useNavigate();
+
+    const { settings } = useSettingsStore();
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -152,11 +157,17 @@ const InventoryDashboard = () => {
                     <div className="glass-panel p-6">
                         <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
                         <div className="space-y-3">
-                            <button className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group">
+                            <button 
+                                onClick={() => navigate('/inventory/waste')}
+                                className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group"
+                            >
                                 <span className="font-medium text-white">Log Waste</span>
                                 <FiPlus className="text-textMuted group-hover:text-primary transition-colors" />
                             </button>
-                            <button className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group">
+                            <button 
+                                onClick={() => navigate('/inventory/counts')}
+                                className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group"
+                            >
                                 <span className="font-medium text-white">Start Physical Count</span>
                                 <FiPlus className="text-textMuted group-hover:text-primary transition-colors" />
                             </button>

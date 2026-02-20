@@ -19,6 +19,17 @@ class Unit(models.Model):
     def __str__(self):
         return self.abbreviation
 
+class UnitConversion(models.Model):
+    from_unit = models.ForeignKey(Unit, related_name='conversions_from', on_delete=models.CASCADE)
+    to_unit = models.ForeignKey(Unit, related_name='conversions_to', on_delete=models.CASCADE)
+    multiplier = models.DecimalField(max_digits=10, decimal_places=5) # e.g. 1 kg = 1000 g (multiplier=1000)
+
+    class Meta:
+        unique_together = ('from_unit', 'to_unit')
+
+    def __str__(self):
+        return f"1 {self.from_unit.abbreviation} = {self.multiplier} {self.to_unit.abbreviation}"
+
 class RawMaterial(models.Model):
     CATEGORY_CHOICES = (
         ('dairy', 'Dairy'),
@@ -139,21 +150,63 @@ class PhysicalCountItem(models.Model):
     discrepancy_value = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.TextField(blank=True, null=True)
 
+class Product(models.Model):
+    CATEGORY_CHOICES = (
+        ('hot_drinks', 'Hot Drinks'),
+        ('cold_drinks', 'Cold Drinks'),
+        ('pastries', 'Pastries'),
+        ('desserts', 'Desserts'),
+        ('addons', 'Add-ons'),
+        ('other', 'Other'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=150)
+    name_ar = models.CharField(max_length=150, blank=True, null=True)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
 class Recipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # menu_item = models.OneToOneField('sales.MenuItem', on_delete=models.CASCADE)
-    # For now we'll put a charfield so migrations work, update this when sales app exists
-    menu_item_name = models.CharField(max_length=150) 
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
     yield_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
     preparation_time = models.IntegerField(help_text="In minutes", default=5)
     notes = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return f"Recipe for {self.product.name if self.product else 'Unknown'}"
 
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='ingredients')
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
     quantity = models.DecimalField(max_digits=10, decimal_places=3)
-    unit = models.ForeignKey(Unit, on_delete=models.PROTECT)
+    unit = models.ForeignKey(Unit, on_delete=models.PROTECT, help_text="The unit used in the recipe (e.g. grams)")
     is_optional = models.BooleanField(default=False)
+
+    def get_cost(self):
+        # Calculate cost based on unit conversion
+        if self.unit == self.raw_material.unit:
+            return self.quantity * self.raw_material.cost_per_unit
+        
+        try:
+            conversion = UnitConversion.objects.get(
+                from_unit=self.raw_material.unit,
+                to_unit=self.unit
+            )
+            # cost per recipe unit = cost of base unit / multiplier
+            # e.g., Base=KG ($10), Recipe Unit=Grams. Multiplier=1000. Grid=10/1000 = $0.01 per gram.
+            cost_per_recipe_unit = self.raw_material.cost_per_unit / conversion.multiplier
+            return self.quantity * cost_per_recipe_unit
+        except UnitConversion.DoesNotExist:
+            return 0 # Or handle via exception/validation
 
 class Notification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

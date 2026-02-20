@@ -6,7 +6,7 @@ import {
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
   FiMenu, FiX, FiUser, FiCoffee,
   FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
-  FiClipboard, FiTruck, FiList
+  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
@@ -38,26 +38,28 @@ const DashboardLayout = () => {
 
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: FiHome, show: true },
-    { 
-      name: 'Inventory', 
-      icon: FiBox, 
-      show: isAdminOrManager,
-      isOpen: inventoryOpen,
-      setIsOpen: setInventoryOpen,
+    {
+      name: 'Inventory Mgt', icon: FiBox, show: isAdminOrManager,
+      isOpen: inventoryOpen, setIsOpen: setInventoryOpen,
       subLinks: [
-        { name: 'Overview', path: '/inventory', icon: FiMenu },
+        { name: 'Dashboard', path: '/inventory', icon: FiHome },
         { name: 'Raw Materials', path: '/inventory/materials', icon: FiList },
+        { name: 'Measurement Units', path: '/inventory/units', icon: FiBox },
+        { name: 'Unit Conversions', path: '/inventory/conversions', icon: FiRepeat },
+        { name: 'Products (Menu)', path: '/inventory/products', icon: FiCoffee },
+        { name: 'Recipes', path: '/inventory/recipes', icon: FiBookOpen },
+        { name: 'Physical Counts', path: '/inventory/counts', icon: FiClipboard },
+        { name: 'Waste Logs', path: '/inventory/waste', icon: FiTrash2 },
       ]
     },
-    { 
-      name: 'Purchasing', 
-      icon: FiShoppingCart, 
-      show: isAdminOrManager,
-      isOpen: purchasingOpen,
-      setIsOpen: setPurchasingOpen,
+    {
+      name: 'Purchasing', icon: FiShoppingCart, show: isAdminOrManager,
+      isOpen: purchasingOpen, setIsOpen: setPurchasingOpen,
       subLinks: [
         { name: 'Suppliers', path: '/purchasing/suppliers', icon: FiTruck },
         { name: 'Purchase Orders', path: '/purchasing/orders', icon: FiClipboard },
+        { name: 'Receive GRNs', path: '/purchasing/grns', icon: FiInbox },
+        { name: 'Invoices', path: '/purchasing/invoices', icon: FiDollarSign },
       ]
     },
     { name: 'Register Staff', path: '/register', icon: FiUserPlus, show: isAdminOrManager },

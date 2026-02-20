@@ -8,8 +8,16 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import RawMaterials from './pages/inventory/RawMaterials';
+import Units from './pages/inventory/Units';
+import UnitConversions from './pages/inventory/UnitConversions';
+import Products from './pages/inventory/Products';
+import Recipes from './pages/inventory/Recipes';
+import PhysicalCounts from './pages/inventory/PhysicalCounts';
+import WasteLogs from './pages/inventory/WasteLogs';
 import Suppliers from './pages/purchasing/Suppliers';
 import PurchaseOrders from './pages/purchasing/PurchaseOrders';
+import GoodsReceivedNotes from './pages/purchasing/GoodsReceivedNotes';
+import Invoices from './pages/purchasing/Invoices';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -50,8 +58,16 @@ function App() {
               {/* Inventory & Purchasing */}
               <Route path="/inventory" element={<InventoryDashboard />} />
               <Route path="/inventory/materials" element={<RawMaterials />} />
+              <Route path="/inventory/units" element={<Units />} />
+              <Route path="/inventory/conversions" element={<UnitConversions />} />
+              <Route path="/inventory/products" element={<Products />} />
+              <Route path="/inventory/recipes" element={<Recipes />} />
+              <Route path="/inventory/counts" element={<PhysicalCounts />} />
+              <Route path="/inventory/waste" element={<WasteLogs />} />
               <Route path="/purchasing/suppliers" element={<Suppliers />} />
               <Route path="/purchasing/orders" element={<PurchaseOrders />} />
+              <Route path="/purchasing/grns" element={<GoodsReceivedNotes />} />
+              <Route path="/purchasing/invoices" element={<Invoices />} />
             </Route>
           </Route>
         </Route>

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import axiosInstance from '../api/axiosInstance';
-import { jwtDecode } from 'jwt-decode';
 
 // Small decoding utility to extract claims. You will need to `npm install jwt-decode`
 // Wait, I will use a simple base64 decode if not installed to avoid extra dependency.

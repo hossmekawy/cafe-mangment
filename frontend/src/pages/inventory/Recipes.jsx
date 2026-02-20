@@ -5,7 +5,8 @@ import Select from 'react-select';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiEye, FiSettings, FiGripVertical, FiSearch, FiLayers } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEye, FiSettings, FiSearch, FiLayers } from 'react-icons/fi';
+import { MdDragIndicator } from 'react-icons/md';
 import DataTable from '../../components/DataTable';
 import { inventoryApi } from '../../api/inventoryApi';
 import useSettingsStore from '../../store/settingsStore';
@@ -358,7 +359,7 @@ const Recipes = () => {
                                                                 `}
                                                             >
                                                                 <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center shrink-0">
-                                                                    <FiGripVertical className="text-textMuted" />
+                                                                    <MdDragIndicator className="text-textMuted" />
                                                                 </div>
                                                                 <div className="overflow-hidden">
                                                                     <p className="text-sm font-semibold text-white truncate">{mat.name}</p>
@@ -462,7 +463,7 @@ const Recipes = () => {
                                                                         `}
                                                                     >
                                                                         <div {...provided.dragHandleProps} className="p-2 -ml-2 text-textMuted hover:text-white cursor-grab active:cursor-grabbing">
-                                                                            <FiGripVertical className="w-5 h-5" />
+                                                                            <MdDragIndicator className="w-5 h-5" />
                                                                         </div>
                                                                         
                                                                         <div className="w-full md:w-1/3">

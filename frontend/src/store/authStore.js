@@ -23,6 +23,8 @@ const useAuthStore = create((set, get) => ({
       const decoded = parseJwt(token);
       if (decoded && decoded.exp * 1000 > Date.now()) {
         set({ user: decoded, isAuthenticated: true, isLoading: false });
+        // Fetch full profile info concurrently
+        get().fetchUser();
       } else {
         // Expired token (interceptor will handle refresh on next request, but for immediate mount state:)
         set({ user: null, isAuthenticated: false, isLoading: false }); 
@@ -43,6 +45,7 @@ const useAuthStore = create((set, get) => ({
         
         const decoded = parseJwt(access);
         set({ user: decoded, isAuthenticated: true });
+        get().fetchUser(); // Grab full profile
         return { success: true };
       }
     } catch (error) {
@@ -64,6 +67,7 @@ const useAuthStore = create((set, get) => ({
         
         const decoded = parseJwt(access);
         set({ user: decoded, isAuthenticated: true });
+        get().fetchUser(); // Grab full profile
         return { success: true };
       }
     } catch (error) {
@@ -71,6 +75,18 @@ const useAuthStore = create((set, get) => ({
         success: false, 
         error: error.response?.data?.detail || "PIN Login failed" 
       };
+    }
+  },
+
+  // Fetch Full User Profile
+  fetchUser: async () => {
+    try {
+      const res = await axiosInstance.get('/auth/me/');
+      if (res.data?.success) {
+        set({ user: res.data.data }); // Upgrades the decoded JWT user with full details
+      }
+    } catch (e) {
+      console.error("Failed to fetch full user profile:", e);
     }
   },
 

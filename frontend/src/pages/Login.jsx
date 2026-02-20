@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
+import useSettingsStore from '../store/settingsStore';
 import { useNavigate } from 'react-router-dom';
-import { FiLock, FiUser } from 'react-icons/fi';
+import { FiLock, FiUser, FiCoffee } from 'react-icons/fi';
 
 const Login = () => {
   const [isPinMode, setIsPinMode] = useState(false);
@@ -12,7 +13,12 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   
   const { login, pinLogin } = useAuthStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -52,9 +58,16 @@ const Login = () => {
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl shadow-2xl"></div>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl shadow-2xl"></div>
 
-        <div className="relative text-center">
+        <div className="relative text-center flex flex-col items-center">
+          {settings?.logo_base64 ? (
+              <img src={settings.logo_base64} alt="Brand Logo" className="w-20 h-20 object-contain mb-4 drop-shadow-lg" />
+          ) : (
+              <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mb-4 border border-primary/50 shadow-lg mb-2">
+                  <FiCoffee className="w-10 h-10 text-primary" />
+              </div>
+          )}
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-white mb-2">
-            Cafe System
+            {settings?.brand_name || 'Cafe System'}
           </h2>
           <p className="text-sm text-textMuted font-medium">
             Sign in to access your dashboard

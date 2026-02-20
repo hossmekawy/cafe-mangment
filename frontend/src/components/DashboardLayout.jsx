@@ -1,18 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import useSettingsStore from '../store/settingsStore';
 import { 
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
-  FiMenu, FiX, FiUser 
+  FiMenu, FiX, FiUser, FiCoffee 
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
   const { user, logout } = useAuthStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const isAdminOrManager = ['manager', 'super_admin'].includes(user?.role);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleLogout = async () => {
     await logout();
@@ -43,9 +49,18 @@ const DashboardLayout = () => {
       `}>
         <div className="h-full flex flex-col pt-6 pb-4">
           <div className="px-6 pb-6 border-b border-white/10 flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-              Cafe System
-            </h1>
+            <div className="flex items-center space-x-3 overflow-hidden">
+                {settings?.logo_base64 ? (
+                    <img src={settings.logo_base64} alt="Brand Logo" className="w-8 h-8 object-contain shrink-0" />
+                ) : (
+                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                        <FiCoffee className="w-5 h-5 text-primary" />
+                    </div>
+                )}
+                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent truncate">
+                  {settings?.brand_name || 'Cafe System'}
+                </h1>
+            </div>
             <button className="lg:hidden text-textMuted" onClick={() => setSidebarOpen(false)}>
                <FiX className="w-6 h-6" />
             </button>

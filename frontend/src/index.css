@@ -1,21 +1,57 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-primary: #3B82F6;
+  --color-secondary: #10B981;
+  --color-accent: #8B5CF6;
+  --color-danger: #EF4444;
+  --color-textMain: #F8FAFC;
+  --color-textMuted: #94A3B8;
+
+  --animate-fade-in: fadeIn 0.3s ease-out;
+  --animate-slide-up: slideUp 0.4s ease-out;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
 
 @layer base {
   body {
-    @apply bg-background text-textMain font-sans antialiased overflow-x-hidden;
+    background-color: var(--color-background);
+    color: var(--color-textMain);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 }
 
 @layer components {
-  /* Glassmorphism utility classes */
   .glass-panel {
     @apply bg-surface/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
   }
-  
+
   .glass-input {
     @apply bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
   }
@@ -23,13 +59,12 @@
   .btn-primary {
     @apply bg-primary hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg shadow-primary/30 flex items-center justify-center;
   }
-  
+
   .btn-secondary {
     @apply bg-surface hover:bg-slate-700 text-white border border-slate-600 font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center;
   }
 }
 
-/* Custom Scrollbar for sleek dark mode */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

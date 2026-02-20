@@ -25,6 +25,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
+class AdminCreateUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'name', 'password', 'role', 'branch', 'pin', 'avatar', 'is_active')
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', 'cafe1234')
+        user = User.objects.create_user(
+            password=password,
+            **validated_data
+        )
+        return user
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):

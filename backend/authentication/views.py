@@ -9,8 +9,10 @@ from django.contrib.auth.tokens import default_token_generator
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer,
     ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
-    SetPINSerializer, PINLoginSerializer, UserSessionSerializer, AuthAuditLogSerializer
+    SetPINSerializer, PINLoginSerializer, UserSessionSerializer, AuthAuditLogSerializer,
+    AdminCreateUserSerializer
 )
+from .permissions import IsAdminOrManager
 from django.contrib.auth.hashers import make_password, check_password
 from .models import UserSession, AuthAuditLog
 from .throttles import check_account_lockout, record_failed_login, reset_failed_login, LoginRateThrottle
@@ -108,6 +110,30 @@ class RegisterView(generics.CreateAPIView):
             "detail": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 
+class AdminUserListView(generics.ListAPIView):
+    queryset = User.objects.all().order_by('-created_at')
+    serializer_class = UserSerializer
+    permission_classes = (IsAdminOrManager,)
+
+class AdminUserCreateView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = AdminCreateUserSerializer
+    permission_classes = (IsAdminOrManager,)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return Response({
+                "success": True,
+                "data": serializer.data,
+                "message": "User created successfully"
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "success": False,
+            "error": "VALIDATION_ERROR",
+            "detail": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer

@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
+import DashboardLayout from './components/DashboardLayout';
+import RegisterStaff from './pages/RegisterStaff';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -13,13 +15,19 @@ function App() {
         
         {/* Protected Routes (Authenticated any role) */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            
+            {/* Protected Routes (Manager & Super Admin only) */}
+            <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/register" element={<RegisterStaff />} />
+            </Route>
+          </Route>
         </Route>
 
-        {/* Protected Routes (Manager & Super Admin only) */}
-        <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
-          <Route path="/settings" element={<Settings />} />
-        </Route>
+
 
         {/* Catch-all route */}
         <Route path="*" element={<Navigate to="/" replace />} />

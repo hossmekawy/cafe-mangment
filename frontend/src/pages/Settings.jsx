@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import useSettingsStore from '../store/settingsStore';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave } from 'react-icons/fi';
+import { FiSave, FiUploadCloud } from 'react-icons/fi';
 
 const Settings = () => {
   const { settings, fetchSettings, updateSettings, isLoading, error } = useSettingsStore();
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({});
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -27,6 +26,21 @@ const Settings = () => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+          alert("File cannot be larger than 2MB.");
+          return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logo_base64: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSuccessMsg('');
@@ -38,30 +52,46 @@ const Settings = () => {
   };
 
   if (isLoading && !settings) {
-      return <div className="min-h-screen bg-background flex items-center justify-center text-primary">Loading...</div>;
+      return <div className="flex items-center justify-center text-primary py-12">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background text-textMain p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        
-        <div className="flex items-center space-x-4 mb-8">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-surface rounded-full transition-colors">
-                <FiArrowLeft className="w-6 h-6 text-textMuted hover:text-white" />
-            </button>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent to-primary">
-                Global Cafe Settings
-            </h1>
-        </div>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mb-8">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent to-primary">
+              Global Cafe Settings
+          </h1>
+          <p className="text-textMuted mt-1">Manage cafe preferences, branding, and taxes.</p>
+      </div>
 
-        {error && <div className="bg-danger/20 text-danger p-4 rounded-lg border border-danger/30">{error}</div>}
-        {successMsg && <div className="bg-secondary/20 text-secondary p-4 rounded-lg border border-secondary/30">{successMsg}</div>}
+      {error && <div className="bg-danger/20 text-danger p-4 rounded-lg border border-danger/30">{error}</div>}
+      {successMsg && <div className="bg-secondary/20 text-secondary p-4 rounded-lg border border-secondary/30">{successMsg}</div>}
 
-        <form onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 space-y-8">
             
             {/* Brand Settings Section */}
             <section className="space-y-4">
                 <h2 className="text-xl font-semibold border-b border-white/10 pb-2 text-primary">Brand Information</h2>
+                
+                {/* Logo Upload */}
+                <div className="flex items-center space-x-6 mb-6">
+                    <div className="w-24 h-24 rounded-2xl bg-surface border border-dashed border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
+                        {formData.logo_base64 ? (
+                            <img src={formData.logo_base64} alt="Brand Logo" className="w-full h-full object-contain p-2" />
+                        ) : (
+                            <span className="text-textMuted text-xs text-center px-2">No Logo</span>
+                        )}
+                    </div>
+                    <div className="flex-1">
+                        <label className="btn-secondary w-full md:w-auto inline-flex cursor-pointer space-x-2 text-sm px-4 py-2">
+                            <FiUploadCloud className="w-5 h-5" />
+                            <span>Upload Base64 Logo</span>
+                            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                        </label>
+                        <p className="text-xs text-textMuted mt-2">Will be serialized to Base64 in DB.</p>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-sm font-medium text-textMuted mb-1">Brand Name</label>
@@ -140,7 +170,6 @@ const Settings = () => {
             </div>
             
         </form>
-      </div>
     </div>
   );
 };

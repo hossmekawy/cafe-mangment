@@ -28,7 +28,7 @@ class GlobalSettings(models.Model):
         if not self.pk and GlobalSettings.objects.exists():
             # If you try to create a new one, but one already exists, raise error
             raise ValidationError('There can only be one GlobalSettings instance')
-        return super(GlobalSettings, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     @classmethod
     def load(cls):

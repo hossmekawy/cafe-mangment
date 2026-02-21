@@ -92,12 +92,37 @@ class SupplierInvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
         invoice = self.get_object()
-        amount = request.data.get('amount')
+        amount = request.data.get('amount_paid')
         method = request.data.get('payment_method')
+        reference = request.data.get('reference', '')
+        notes = request.data.get('notes', '')
         
         if not amount or not method:
-             return Response({"error": "Amount and payment_method are required."}, status=status.HTTP_400_BAD_REQUEST)
+             return Response({"error": "amount_paid and payment_method are required."}, status=status.HTTP_400_BAD_REQUEST)
              
-        # Add payment logic...
-        # Update invoice status based on total_amount vs paid_amount
-        return Response({"success": True, "message": "Payment logged"})
+        from decimal import Decimal
+        
+        # Add payment logic
+        payment_amount = Decimal(str(amount))
+        if payment_amount <= 0:
+             return Response({"error": "Payment amount must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+             
+        if payment_amount > (invoice.total_amount - invoice.paid_amount):
+             return Response({"error": "Payment amount cannot exceed the remaining balance."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        SupplierPayment.objects.create(
+            invoice=invoice,
+            amount=payment_amount,
+            payment_method=method,
+            reference_number=reference,
+            recorded_by=request.user
+        )
+        
+        invoice.paid_amount += payment_amount
+        if invoice.paid_amount >= invoice.total_amount:
+            invoice.status = 'paid'
+        else:
+            invoice.status = 'partially_paid'
+        invoice.save()
+        
+        return Response({"success": True, "message": "Payment recorded successfully", "new_balance": invoice.total_amount - invoice.paid_amount})

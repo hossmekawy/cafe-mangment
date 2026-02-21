@@ -27,7 +27,7 @@ const Invoices = () => {
 
     const { settings } = useSettingsStore();
 
-    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
+    const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm({
         resolver: yupResolver(paymentSchema)
     });
 
@@ -50,7 +50,7 @@ const Invoices = () => {
     const openPaymentModal = (invoice) => {
         setInvoiceToPay(invoice);
         // Pre-fill with remaining amount
-        const remaining = parseFloat(invoice.total_amount) - parseFloat(invoice.amount_paid);
+        const remaining = parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount || 0);
         reset({
             amount_paid: remaining,
             payment_method: 'bank_transfer',
@@ -92,7 +92,7 @@ const Invoices = () => {
         },
         {
             header: 'Balance Due',
-            accessorFn: row => `${settings?.currency || '$'}${(parseFloat(row.total_amount) - parseFloat(row.amount_paid)).toFixed(2)}`,
+            accessorFn: row => `${settings?.currency || '$'}${(parseFloat(row.total_amount) - parseFloat(row.paid_amount || 0)).toFixed(2)}`,
             cell: info => {
                 // Must extract just the number to evaluate if balance is zero
                 const balanceStr = info.getValue().replace(settings?.currency || '$', '');
@@ -160,49 +160,82 @@ const Invoices = () => {
             />
 
             {/* Pay Invoice Modal */}
-            {isPaymentModalOpen && (
+            {isPaymentModalOpen && invoiceToPay && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsPaymentModalOpen(false)}></div>
-                    <div className="relative glass-panel w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold text-white mb-2">Record Payment</h2>
-                        <p className="text-textMuted text-sm mb-6">Paying Invoice: <span className="text-primary font-mono">{invoiceToPay?.invoice_number}</span></p>
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsPaymentModalOpen(false)}></div>
+                    <div className="relative glass-panel w-full max-w-lg overflow-hidden transform transition-all shadow-2xl shadow-green-500/10">
+                        {/* Decorative Header Background */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/20 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
                         
-                        <form onSubmit={handleSubmit(onPaymentSubmit)} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-textMuted mb-1">Amount to Pay ({settings?.currency || '$'}) *</label>
-                                <input type="number" step="0.01" {...register('amount_paid')} className="form-input text-2xl font-mono text-green-400 font-bold" />
-                                {errors.amount_paid && <span className="text-red-400 text-xs">{errors.amount_paid.message}</span>}
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-textMuted mb-1">Payment Method</label>
-                                <select {...register('payment_method')} className="form-input">
-                                    <option value="cash">Cash</option>
-                                    <option value="bank_transfer">Bank Transfer</option>
-                                    <option value="credit_card">Credit Card</option>
-                                    <option value="cheque">Cheque</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-textMuted mb-1">Transaction Ref / Cheque #</label>
-                                <input {...register('reference')} className="form-input" />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-textMuted mb-1">Internal Notes</label>
-                                <textarea {...register('notes')} className="form-input" rows="2"></textarea>
-                            </div>
-
-                            <div className="flex justify-end space-x-3 pt-4 border-t border-white/10 mt-6">
-                                <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-4 py-2 rounded-lg text-textMuted hover:bg-white/5 transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border border-green-500/30 px-6 py-2 rounded-lg transition-colors font-medium">
-                                    Submit Payment
+                        <div className="p-8 relative z-10">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h2 className="text-2xl font-black text-white tracking-tight flex items-center">
+                                        <FiDollarSign className="text-green-400 mr-2" /> Record Payment
+                                    </h2>
+                                    <p className="text-textMuted mt-1">
+                                        Paying Invoice: <span className="text-white font-mono bg-white/5 py-0.5 px-2 rounded ml-1">{invoiceToPay.invoice_number}</span>
+                                    </p>
+                                </div>
+                                <button onClick={() => setIsPaymentModalOpen(false)} className="p-2 text-textMuted hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+                                    <FiX className="w-5 h-5" />
                                 </button>
                             </div>
-                        </form>
+
+                            <div className="bg-[#0f172a]/80 border border-white/5 rounded-2xl p-4 mb-6 flex justify-between items-center shadow-inner">
+                                <div>
+                                    <p className="text-textMuted text-xs font-medium uppercase tracking-wider mb-1">Current Balance Due</p>
+                                    <p className="text-2xl font-mono font-bold text-red-400">
+                                        {settings?.currency || '$'}{(parseFloat(invoiceToPay.total_amount) - parseFloat(invoiceToPay.paid_amount || 0)).toFixed(2)}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-textMuted text-xs font-medium uppercase tracking-wider mb-1">Total Invoice</p>
+                                    <p className="text-white font-mono">{settings?.currency || '$'}{parseFloat(invoiceToPay.total_amount).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            
+                            <form onSubmit={handleSubmit(onPaymentSubmit)} className="space-y-5">
+                                <div>
+                                    <label className="block text-sm font-semibold text-white/90 mb-2">Payment Amount ({settings?.currency || '$'}) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-green-400 font-bold">{settings?.currency || '$'}</span>
+                                        <input type="number" step="0.01" {...register('amount_paid')} className="w-full bg-[#0f172a] border-2 border-green-500/30 text-white rounded-xl py-3 pl-16 pr-4 focus:ring-2 focus:ring-green-500/50 focus:border-green-500 text-xl font-mono font-bold transition-all shadow-inner" />
+                                    </div>
+                                    {errors.amount_paid && <span className="text-red-400 text-xs mt-1 block">{errors.amount_paid.message}</span>}
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-white/90 mb-2">Payment Method</label>
+                                        <select {...register('payment_method')} className="w-full bg-[#0f172a] border border-white/10 text-white rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="instapay">InstaPay</option>
+                                            <option value="check">Check</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-white/90 mb-2">Transaction Ref</label>
+                                        <input {...register('reference')} placeholder="e.g. TR-99381" className="w-full bg-[#0f172a] border border-white/10 text-white rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:border-primary transition-all placeholder:text-gray-600" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-white/90 mb-2">Internal Notes</label>
+                                    <textarea {...register('notes')} placeholder="Optional notes about this payment..." className="w-full bg-[#0f172a] border border-white/10 text-white rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none placeholder:text-gray-600" rows="2"></textarea>
+                                </div>
+
+                                <div className="flex justify-end space-x-3 pt-6 mt-4">
+                                    <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="px-5 py-3 rounded-xl font-medium text-white bg-white/5 hover:bg-white/10 transition-colors w-1/3">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={isSubmitting} className="w-2/3 px-5 py-3 rounded-xl font-bold tracking-wide text-gray-900 bg-green-500 hover:bg-green-400 shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-all flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                                        {isSubmitting ? 'Processing...' : 'Confirm Payment'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}
@@ -250,12 +283,12 @@ const Invoices = () => {
                                 </div>
                                 <div className="bg-[#1e293b]/80 p-5 rounded-2xl border border-white/5 flex flex-col justify-center">
                                     <p className="text-sm text-textMuted font-medium mb-1">Amount Paid</p>
-                                    <p className="text-3xl font-mono text-green-400 tracking-tight">{settings?.currency || '$'}{parseFloat(viewInvoice.amount_paid).toFixed(2)}</p>
+                                    <p className="text-3xl font-mono text-green-400 tracking-tight">{settings?.currency || '$'}{parseFloat(viewInvoice.paid_amount || 0).toFixed(2)}</p>
                                 </div>
                                 <div className={`p-5 rounded-2xl border flex flex-col justify-center ${viewInvoice.status === 'paid' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/30 shadow-[inset_0_0_20px_rgba(239,68,68,0.1)]'}`}>
                                     <p className={`text-sm font-medium mb-1 ${viewInvoice.status === 'paid' ? 'text-green-400' : 'text-red-400'}`}>Balance Remaining</p>
                                     <p className={`text-3xl font-mono font-black tracking-tight ${viewInvoice.status === 'paid' ? 'text-green-400' : 'text-red-400'}`}>
-                                        {settings?.currency || '$'}{(parseFloat(viewInvoice.total_amount) - parseFloat(viewInvoice.amount_paid)).toFixed(2)}
+                                        {settings?.currency || '$'}{(parseFloat(viewInvoice.total_amount) - parseFloat(viewInvoice.paid_amount || 0)).toFixed(2)}
                                     </p>
                                 </div>
                             </div>
@@ -295,7 +328,7 @@ const Invoices = () => {
                                                 {/* Card */}
                                                 <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] glass-panel p-4 rounded-xl border border-white/5 hover:border-primary/30 transition-colors">
                                                     <div className="flex justify-between items-start mb-1">
-                                                        <span className="text-white font-bold text-lg font-mono tracking-tight">+{settings?.currency || '$'}{parseFloat(payment.amount_paid).toFixed(2)}</span>
+                                                        <span className="text-white font-bold text-lg font-mono tracking-tight">+{settings?.currency || '$'}{parseFloat(payment.amount).toFixed(2)}</span>
                                                         <span className="text-[10px] font-bold text-textMuted bg-white/5 px-2 py-1 rounded uppercase tracking-wider border border-white/5">{payment.payment_method.replace('_', ' ')}</span>
                                                     </div>
                                                     <p className="text-xs text-textMuted mb-2">{new Date(payment.payment_date).toLocaleString()}</p>

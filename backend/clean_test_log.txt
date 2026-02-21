@@ -1,0 +1,8 @@
+Testing as superuser: hussien (branch: None)
+ERROR 404 GET /api/finance/shifts/current/ | No Title | No Value
+ERROR 400 POST /api/finance/shifts/open_shift/ | No Title | No Value
+ERROR 404 GET /api/finance/sales/summary/ | Page not found at /api/finance/sales/summary/ | No Value
+SUCCESS 200 GET /api/finance/expenses/summary/
+SUCCESS 200 GET /api/finance/reports/?type=pnl
+ERROR 404 POST /api/finance/sales/transactions/ | Page not found at /api/finance/sales/transactions/ | No Value
+ERROR 404 POST /api/finance/pettycash/spend/ | Page not found at /api/finance/pettycash/spend/ | No Value

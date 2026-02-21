@@ -4,7 +4,9 @@ from .views import (
     RegisterView, CustomTokenObtainPairView, LogoutView, MeView,
     ChangePasswordView, ForgotPasswordView, ResetPasswordView,
     SetPINView, PINLoginView, SessionListView, SessionRevokeView,
-    AdminUserListView, AdminUserCreateView, UpdateThemeView
+    AdminUserListView, AdminUserCreateView, UpdateThemeView,
+    AdminUserDetailView, AdminUserAuditLogView, AdminUserSessionView,
+    BranchListView
 )
 
 urlpatterns = [
@@ -17,6 +19,11 @@ urlpatterns = [
     
     path('admin/users/', AdminUserListView.as_view(), name='admin_user_list'),
     path('admin/users/create/', AdminUserCreateView.as_view(), name='admin_user_create'),
+    path('admin/users/<uuid:pk>/', AdminUserDetailView.as_view(), name='admin_user_detail'),
+    path('admin/users/<uuid:pk>/logs/', AdminUserAuditLogView.as_view(), name='admin_user_logs'),
+    path('admin/users/<uuid:pk>/sessions/', AdminUserSessionView.as_view(), name='admin_user_sessions'),
+    
+    path('branches/', BranchListView.as_view(), name='branch_list'),
     
     path('password/change/', ChangePasswordView.as_view(), name='auth_change_password'),
     path('password/forgot/', ForgotPasswordView.as_view(), name='auth_forgot_password'),

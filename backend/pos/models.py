@@ -61,6 +61,7 @@ class Order(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order_number = models.CharField(max_length=50, unique=True, blank=True)
+    shift = models.ForeignKey('finance.CashShift', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     order_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='takeaway')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
@@ -84,8 +85,38 @@ class Order(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.order_number:
-            self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+            self._generate_order_number()
         super().save(*args, **kwargs)
+
+    def _generate_order_number(self):
+        """Generate order number as ShiftNumber/SequentialOrder (e.g. 5/001)."""
+        from finance.models import CashShift
+        from datetime import date
+
+        # Try to find the open shift for the waiter/cashier
+        open_shift = None
+        if self.assigned_waiter:
+            open_shift = CashShift.objects.filter(
+                cashier=self.assigned_waiter, status='open'
+            ).first()
+        
+        if not open_shift:
+            # Fallback: any open shift on the same branch as the waiter
+            if self.assigned_waiter and hasattr(self.assigned_waiter, 'branch') and self.assigned_waiter.branch:
+                open_shift = CashShift.objects.filter(
+                    branch=self.assigned_waiter.branch, status='open'
+                ).first()
+
+        if open_shift:
+            self.shift = open_shift
+            # Count existing orders in this shift
+            order_seq = Order.objects.filter(shift=open_shift).count() + 1
+            self.order_number = f"{open_shift.shift_number}/{order_seq:03d}"
+        else:
+            # Fallback for when there is no open shift
+            today = date.today()
+            day_count = Order.objects.filter(created_at__date=today).count() + 1
+            self.order_number = f"0/{day_count:03d}"
 
     def __str__(self):
         return f"{self.order_number}"

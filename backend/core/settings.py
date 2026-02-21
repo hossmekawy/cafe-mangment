@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'pos',
     'customers',
     'promotions',
+    'finance',
 ]
 
 MIDDLEWARE = [

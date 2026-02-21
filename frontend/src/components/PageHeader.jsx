@@ -16,13 +16,17 @@ const PageHeader = ({ title, subtitle, icon: Icon, action }) => {
             </div>
             
             {action && (
-                <button 
-                    onClick={action.onClick}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all shadow-sm shadow-blue-600/20 active:scale-[0.98]"
-                >
-                    {action.icon && <action.icon className="w-4 h-4" />}
-                    {action.label}
-                </button>
+                React.isValidElement(action) ? (
+                    action
+                ) : (
+                    <button 
+                        onClick={action.onClick}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all shadow-sm shadow-blue-600/20 active:scale-[0.98]"
+                    >
+                        {action.icon && <action.icon className="w-4 h-4" />}
+                        {action.label}
+                    </button>
+                )
             )}
         </div>
     );

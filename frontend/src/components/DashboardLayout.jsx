@@ -6,7 +6,7 @@ import {
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
   FiMenu, FiX, FiUser, FiCoffee, FiUsers, FiGift,
   FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
-  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag
+  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag, FiFileText, FiTrendingUp, FiBriefcase, FiCheckSquare, FiPieChart
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
@@ -46,11 +46,15 @@ const DashboardLayout = () => {
 
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [purchasingOpen, setPurchasingOpen] = useState(false);
+  const [financeOpen, setFinanceOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // Auto-expand menus if child route is active
   useEffect(() => {
     if (window.location.pathname.includes('/inventory')) setInventoryOpen(true);
     if (window.location.pathname.includes('/purchasing')) setPurchasingOpen(true);
+    if (window.location.pathname.includes('/finance')) setFinanceOpen(true);
+    if (window.location.pathname.includes('/settings') || window.location.pathname.includes('/register')) setAdminOpen(true);
   }, []);
 
   const navLinks = [
@@ -85,10 +89,31 @@ const DashboardLayout = () => {
         { name: 'Invoices', path: '/purchasing/invoices', icon: FiDollarSign },
       ]
     },
-    { name: 'Register Staff', path: '/register', icon: FiUserPlus, show: isAdminOrManager },
+    {
+      name: 'Finance & Accounts', icon: FiDollarSign, show: true,
+      isOpen: financeOpen, setIsOpen: setFinanceOpen,
+      subLinks: [
+        { name: 'Cash Register', path: '/finance/cash-register', icon: FiDollarSign },
+        { name: 'Sales Journal', path: '/finance/sales-journal', icon: FiFileText, hideFromCashier: true },
+        { name: 'Expenses', path: '/finance/expenses', icon: FiTrendingUp, hideFromCashier: true },
+        { name: 'Petty Cash', path: '/finance/petty-cash', icon: FiBriefcase },
+        { name: 'Corp. Invoices', path: '/finance/corporate-invoices', icon: FiFileText, hideFromCashier: true },
+        { name: 'Bank Recon.', path: '/finance/bank-reconciliation', icon: FiCheckSquare, hideFromCashier: true },
+        { name: 'Fin. Reports', path: '/finance/reports', icon: FiPieChart, hideFromCashier: true },
+        { name: 'EOD Review', path: '/finance/end-of-day', icon: FiClock, hideFromCashier: true }
+      ].filter(link => !link.hideFromCashier || isAdminOrManager)
+    },
     { name: 'Customer CRM', path: '/customers', icon: FiUsers, show: true },
     { name: 'Promotions Engine', path: '/promotions', icon: FiGift, show: isAdminOrManager },
-    { name: 'Global Settings', path: '/settings', icon: FiSettings, show: isAdminOrManager },
+    {
+      name: 'Administration', icon: FiSettings, show: isAdminOrManager,
+      isOpen: adminOpen, setIsOpen: setAdminOpen,
+      subLinks: [
+        { name: 'User Management', path: '/settings/users', icon: FiUsers },
+        { name: 'Register Staff', path: '/register', icon: FiUserPlus },
+        { name: 'Global Settings', path: '/settings', icon: FiSettings },
+      ]
+    },
   ];
 
   return (

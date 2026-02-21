@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count
 from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 
@@ -141,7 +141,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             .values('day')
             .annotate(
                 revenue=Sum('total_amount'),
-                count=Sum('id', distinct=True)
+                count=Count('id', distinct=True)
             )
             .order_by('day')
         )

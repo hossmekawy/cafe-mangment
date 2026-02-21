@@ -10,11 +10,11 @@ from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer,
     ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
     SetPINSerializer, PINLoginSerializer, UserSessionSerializer, AuthAuditLogSerializer,
-    AdminCreateUserSerializer
+    AdminCreateUserSerializer, UserSerializer, BranchSerializer
 )
 from .permissions import IsAdminOrManager
 from django.contrib.auth.hashers import make_password, check_password
-from .models import UserSession, AuthAuditLog
+from .models import UserSession, AuthAuditLog, Branch
 from .throttles import check_account_lockout, record_failed_login, reset_failed_login, LoginRateThrottle
 import json
 
@@ -134,6 +134,51 @@ class AdminUserCreateView(generics.CreateAPIView):
             "error": "VALIDATION_ERROR",
             "detail": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = AdminCreateUserSerializer
+    permission_classes = (IsAdminOrManager,)
+    
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            # If admin is setting a new password, hash it
+            password = serializer.validated_data.get('password')
+            if password:
+                serializer.validated_data['password'] = make_password(password)
+            self.perform_update(serializer)
+            return Response({"success": True, "data": serializer.data, "message": "User updated successfully"})
+        return Response({"success": False, "error": "VALIDATION_ERROR", "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"success": True, "message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+class AdminUserAuditLogView(generics.ListAPIView):
+    serializer_class = AuthAuditLogSerializer
+    permission_classes = (IsAdminOrManager,)
+    
+    def get_queryset(self):
+        user_id = self.kwargs.get('pk')
+        return AuthAuditLog.objects.filter(user_id=user_id).order_by('-timestamp')
+
+class AdminUserSessionView(generics.ListAPIView):
+    serializer_class = UserSessionSerializer
+    permission_classes = (IsAdminOrManager,)
+    
+    def get_queryset(self):
+        user_id = self.kwargs.get('pk')
+        return UserSession.objects.filter(user_id=user_id).order_by('-last_used_at')
+
+class BranchListView(generics.ListAPIView):
+    queryset = Branch.objects.filter(is_active=True).order_by('name')
+    serializer_class = BranchSerializer
+    permission_classes = (IsAuthenticated,)
+
 
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer

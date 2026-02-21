@@ -3,6 +3,12 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
+from .models import Branch, UserSession, AuthAuditLog
+
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
+        fields = ('id', 'name', 'address', 'is_active', 'created_at')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,7 +77,6 @@ class PINLoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     pin = serializers.CharField(required=True)
 
-from .models import UserSession, AuthAuditLog
 
 class UserSessionSerializer(serializers.ModelSerializer):
     class Meta:

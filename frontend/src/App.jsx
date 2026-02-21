@@ -6,6 +6,7 @@ import DashboardLayout from './components/DashboardLayout';
 import RegisterStaff from './pages/RegisterStaff';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import UserManagement from './pages/settings/UserManagement';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import RawMaterials from './pages/inventory/RawMaterials';
 import Units from './pages/inventory/Units';
@@ -27,6 +28,17 @@ import CustomersList from './pages/customers/CustomersList';
 import CustomerProfile from './pages/customers/CustomerProfile';
 import PromotionsDashboard from './pages/promotions/PromotionsDashboard';
 import OrdersPage from './pages/orders/OrdersPage';
+
+// Finance Pages
+import CashRegister from './pages/finance/CashRegister';
+import SalesJournal from './pages/finance/SalesJournal';
+import Expenses from './pages/finance/Expenses';
+import PettyCash from './pages/finance/PettyCash';
+import BankReconciliation from './pages/finance/BankReconciliation';
+import CorporateInvoices from './pages/finance/CorporateInvoices';
+import FinancialReports from './pages/finance/FinancialReports';
+import EndOfDay from './pages/finance/EndOfDay';
+
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -75,6 +87,7 @@ function App() {
             {/* Protected Routes (Manager & Super Admin only) */}
             <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
               <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/users" element={<UserManagement />} />
               <Route path="/register" element={<RegisterStaff />} />
               
               {/* Inventory & Purchasing */}
@@ -92,7 +105,20 @@ function App() {
               <Route path="/purchasing/orders" element={<PurchaseOrders />} />
               <Route path="/purchasing/grns" element={<GoodsReceivedNotes />} />
               <Route path="/purchasing/invoices" element={<Invoices />} />
+
+              {/* Finance Module - Manager & Admin specific */}
+              <Route path="/finance/sales-journal" element={<SalesJournal />} />
+              <Route path="/finance/expenses" element={<Expenses />} />
+              <Route path="/finance/bank-reconciliation" element={<BankReconciliation />} />
+              <Route path="/finance/corporate-invoices" element={<CorporateInvoices />} />
+              <Route path="/finance/reports" element={<FinancialReports />} />
+              <Route path="/finance/end-of-day" element={<EndOfDay />} />
             </Route>
+
+            {/* Finance Module - Cashier access allowed */}
+            <Route path="/finance/cash-register" element={<CashRegister />} />
+            <Route path="/finance/petty-cash" element={<PettyCash />} />
+
           </Route>
         </Route>
 

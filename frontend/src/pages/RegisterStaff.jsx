@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import useAuthStore from '../store/authStore';
 import axiosInstance from '../api/axiosInstance';
+import { authApi } from '../api/authApi';
 import { FiSave, FiUploadCloud, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useEffect } from 'react';
 
 const RegisterStaff = () => {
   const [formData, setFormData] = useState({
@@ -10,11 +12,26 @@ const RegisterStaff = () => {
     name: '',
     password: '',
     role: 'cashier',
+    branch: '',
     pin: '',
     avatar: ''
   });
   
+  const [branches, setBranches] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  const fetchBranches = async () => {
+      try {
+          const res = await authApi.getBranches();
+          setBranches(res.data || []);
+      } catch (err) {
+          console.error("Failed to load branches", err);
+      }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,12 +66,12 @@ const RegisterStaff = () => {
       const payload = { ...formData };
       if (!payload.password) delete payload.password;
 
-      const res = await axiosInstance.post('/auth/admin/users/create/', payload);
+      const res = await authApi.createUser(payload);
       
       if (res.data.success) {
           toast.success(`Staff account ${formData.username} created!`);
           setFormData({
-              username: '', name: '', password: '', role: 'cashier', pin: '', avatar: ''
+              username: '', name: '', password: '', role: 'cashier', branch: '', pin: '', avatar: ''
           });
       }
     } catch (err) {
@@ -94,6 +111,16 @@ const RegisterStaff = () => {
                     <option value="barista">Barista</option>
                     <option value="manager">Manager</option>
                     <option value="super_admin">Super Admin</option>
+                </select>
+            </div>
+            
+            <div>
+                <label className="block text-sm font-medium text-textMuted mb-1">Assigned Branch (Optional)</label>
+                <select name="branch" value={formData.branch} onChange={handleChange} className="glass-input w-full appearance-none">
+                    <option value="">-- No Branch Assigned --</option>
+                    {branches.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
                 </select>
             </div>
             

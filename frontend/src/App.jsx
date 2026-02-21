@@ -15,6 +15,7 @@ import Recipes from './pages/inventory/Recipes';
 import PhysicalCounts from './pages/inventory/PhysicalCounts';
 import WasteLogs from './pages/inventory/WasteLogs';
 import Suppliers from './pages/purchasing/Suppliers';
+import PurchasingDashboard from './pages/purchasing/PurchasingDashboard';
 import PurchaseOrders from './pages/purchasing/PurchaseOrders';
 import GoodsReceivedNotes from './pages/purchasing/GoodsReceivedNotes';
 import Invoices from './pages/purchasing/Invoices';
@@ -64,6 +65,7 @@ function App() {
               <Route path="/inventory/recipes" element={<Recipes />} />
               <Route path="/inventory/counts" element={<PhysicalCounts />} />
               <Route path="/inventory/waste" element={<WasteLogs />} />
+              <Route path="/purchasing" element={<PurchasingDashboard />} />
               <Route path="/purchasing/suppliers" element={<Suppliers />} />
               <Route path="/purchasing/orders" element={<PurchaseOrders />} />
               <Route path="/purchasing/grns" element={<GoodsReceivedNotes />} />

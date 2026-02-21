@@ -56,6 +56,7 @@ const DashboardLayout = () => {
       name: 'Purchasing', icon: FiShoppingCart, show: isAdminOrManager,
       isOpen: purchasingOpen, setIsOpen: setPurchasingOpen,
       subLinks: [
+        { name: 'Dashboard', path: '/purchasing', icon: FiHome },
         { name: 'Suppliers', path: '/purchasing/suppliers', icon: FiTruck },
         { name: 'Purchase Orders', path: '/purchasing/orders', icon: FiClipboard },
         { name: 'Receive GRNs', path: '/purchasing/grns', icon: FiInbox },

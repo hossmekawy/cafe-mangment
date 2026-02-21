@@ -12,7 +12,7 @@ from .serializers import (
     SupplierSerializer, SupplierDetailSerializer,
     SupplierMaterialSerializer, PurchaseOrderSerializer,
     PurchaseOrderCreateSerializer, PurchaseOrderItemSerializer,
-    GoodsReceivedNoteSerializer, GRNItemSerializer,
+    GoodsReceivedNoteSerializer, GoodsReceivedNoteCreateSerializer, GRNItemSerializer,
     SupplierInvoiceSerializer, SupplierPaymentSerializer,
     SupplierPerformanceLogSerializer
 )
@@ -64,8 +64,12 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
 
 class GoodsReceivedNoteViewSet(viewsets.ModelViewSet):
     queryset = GoodsReceivedNote.objects.all().order_by('-received_date')
-    serializer_class = GoodsReceivedNoteSerializer
     permission_classes = [IsAdminOrManager] 
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update']:
+            return GoodsReceivedNoteCreateSerializer
+        return GoodsReceivedNoteSerializer
 
     def perform_create(self, serializer):
         serializer.save(received_by=self.request.user)

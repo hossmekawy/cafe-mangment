@@ -3,7 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiEye, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiShoppingCart, FiAlertCircle } from 'react-icons/fi';
 import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import { purchasingApi } from '../../api/purchasingApi';
@@ -38,7 +38,7 @@ const PurchaseOrders = () => {
 
     const { settings } = useSettingsStore();
 
-    const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm({
+    const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
         resolver: yupResolver(orderSchema),
         defaultValues: {
             items: [{ raw_material: '', quantity_ordered: 1, unit_price: 0 }]
@@ -50,7 +50,7 @@ const PurchaseOrders = () => {
         name: "items"
     });
 
-    const watchedItems = watch("items");
+    const watchedItems = watch("items") || [];
     const totalAmount = watchedItems.reduce((acc, item) => acc + ((parseFloat(item.quantity_ordered) || 0) * (parseFloat(item.unit_price) || 0)), 0);
 
     const fetchData = async () => {
@@ -86,6 +86,13 @@ const PurchaseOrders = () => {
                     total_price: (parseFloat(item.quantity_ordered) * parseFloat(item.unit_price)).toFixed(2)
                 }))
             };
+            
+            if (!formattedData.expected_delivery_date) {
+                formattedData.expected_delivery_date = null;
+            }
+            if (!formattedData.recurrence_interval) {
+                formattedData.recurrence_interval = null;
+            }
             
             await purchasingApi.createOrder(formattedData);
             toast.success('Purchase Order drafted successfully');
@@ -188,38 +195,47 @@ const PurchaseOrders = () => {
                 searchPlaceholder="Search POs..."
             />
 
-            {/* Create PO Modal */}
+            {/* Create PO Modal - Redesigned Dashboard Layout */}
             {isCreateModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCreateModalOpen(false)}></div>
-                    <div className="relative glass-panel w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-bold text-white mb-6">Draft New Purchase Order</h2>
-                        
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
+                    <div className="relative w-full max-w-6xl h-[85vh] flex overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/50">
+                        {/* Sidebar: Order Details */}
+                        <div className="w-1/3 bg-[#0f172a] p-6 border-r border-white/5 flex flex-col relative z-10">
+                            <h2 className="text-xl font-bold text-white mb-6">Draft Purchase Order</h2>
+                            
+                            <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                                 <div>
-                                    <label className="block text-sm font-medium text-textMuted mb-1">Select Supplier *</label>
-                                    <select {...register('supplier')} className="form-input">
+                                    <label className="block text-sm font-medium text-textMuted mb-2">Select Supplier *</label>
+                                    <select {...register('supplier')} className="form-input bg-background/50 border-white/5 shadow-inner">
                                         <option value="">-- Choose Supplier --</option>
                                         {suppliers.filter(s => s.is_active).map(s => (
                                             <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
                                     </select>
-                                    {errors.supplier && <span className="text-red-400 text-xs">{errors.supplier.message}</span>}
+                                    {errors.supplier && <span className="text-red-400 text-xs mt-1 block">{errors.supplier.message}</span>}
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-medium text-textMuted mb-1">Expected Delivery Date</label>
-                                    <input type="date" {...register('expected_delivery_date')} className="form-input" />
+                                    <label className="block text-sm font-medium text-textMuted mb-2">Expected Delivery Date</label>
+                                    <input type="date" {...register('expected_delivery_date')} className="form-input bg-background/50 border-white/5 shadow-inner" />
                                 </div>
                                 
-                                <div className="col-span-2 glass-panel p-4 flex items-center space-x-6">
-                                    <div className="flex items-center space-x-2">
-                                        <input type="checkbox" {...register('is_recurring')} id="is_recurring" className="w-4 h-4 rounded text-primary" />
-                                        <label htmlFor="is_recurring" className="text-sm font-medium text-white">Make this a Recurring Order</label>
+                                <div className="bg-background/40 rounded-xl p-4 border border-white/5">
+                                    <div className="flex items-center space-x-3 mb-4">
+                                        <div className="relative flex items-center">
+                                            <input type="checkbox" {...register('is_recurring')} id="is_recurring" className="peer w-5 h-5 opacity-0 absolute cursor-pointer" />
+                                            <div className="w-5 h-5 rounded border border-white/20 bg-background/50 peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center pointer-events-none transition-colors">
+                                                <FiCheckCircle className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
+                                            </div>
+                                        </div>
+                                        <label htmlFor="is_recurring" className="text-sm font-medium text-white cursor-pointer select-none">Recurring Order</label>
                                     </div>
-                                    <div className="flex-1">
-                                        <select {...register('recurrence_interval')} className="form-input text-sm py-1.5" disabled={!watch('is_recurring')}>
-                                            <option value="">No Recurrence</option>
+                                    
+                                    <div className={`transition-all duration-300 overflow-hidden ${watch('is_recurring') ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                        <label className="block text-xs font-medium text-textMuted mb-1">Frequency</label>
+                                        <select {...register('recurrence_interval')} className="form-input bg-background/80 text-sm py-2">
+                                            <option value="">Select Interval...</option>
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
                                             <option value="biweekly">Bi-Weekly</option>
@@ -228,86 +244,98 @@ const PurchaseOrders = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="border-t border-white/10 pt-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-white">Order Items</h3>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => append({ raw_material: '', quantity_ordered: 1, unit_price: 0 })}
-                                        className="text-sm text-primary hover:text-primary/80 flex items-center space-x-1"
-                                    >
-                                        <FiPlus /> <span>Add Row</span>
-                                    </button>
-                                </div>
-                                
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-textMuted uppercase tracking-wider px-2">
-                                        <div className="col-span-1">#</div>
-                                        <div className="col-span-5">Material</div>
-                                        <div className="col-span-2 text-center">Qty</div>
-                                        <div className="col-span-2 text-center">Unit Price</div>
-                                        <div className="col-span-1 text-right">Total</div>
-                                        <div className="col-span-1 text-center">Actions</div>
-                                    </div>
-                                    {fields.map((field, index) => {
-                                        const qty = parseFloat(watchedItems[index]?.quantity_ordered) || 0;
-                                        const price = parseFloat(watchedItems[index]?.unit_price) || 0;
-                                        const rowTotal = (qty * price).toFixed(2);
-                                        
-                                        return (
-                                            <div key={field.id} className="grid grid-cols-12 gap-2 items-center bg-white/5 p-2 rounded-lg">
-                                                <div className="col-span-1 text-textMuted font-mono text-xs">{index + 1}</div>
-                                                <div className="col-span-5">
-                                                    <select {...register(`items.${index}.raw_material`)} className="form-input text-sm py-1.5">
-                                                        <option value="">Select Material...</option>
-                                                        {materials.map(m => (
-                                                            <option key={m.id} value={m.id}>{m.name} ({m.unit?.abbreviation || 'unit'})</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <input type="number" step="0.001" {...register(`items.${index}.quantity_ordered`)} className="form-input text-sm py-1.5 text-center" />
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <div className="relative">
-                                                        <span className="absolute left-2 top-1.5 text-textMuted">{settings?.currency || '$'}</span>
-                                                        <input type="number" step="0.01" {...register(`items.${index}.unit_price`)} className="form-input pl-8 text-sm py-1.5 text-right" />
-                                                    </div>
-                                                </div>
-                                                <div className="col-span-1 text-right text-sm font-mono text-accent">
-                                                    {settings?.currency || '$'}{rowTotal}
-                                                </div>
-                                                <div className="col-span-1 flex justify-center">
-                                                    <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-300 p-1">
-                                                        <FiTrash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                    {errors.items?.root && <span className="text-red-400 text-xs">{errors.items.root.message}</span>}
-                                </div>
-                            </div>
                             
-                            <div className="flex justify-end pt-4 border-t border-white/10">
-                                <div className="text-right">
+                            <div className="pt-6 border-t border-white/10 mt-auto">
+                                <div className="mb-6">
                                     <p className="text-textMuted text-sm mb-1">Estimated Total</p>
-                                    <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+                                    <p className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
                                         {settings?.currency || '$'}{totalAmount.toFixed(2)}
                                     </p>
                                 </div>
+                                <div className="flex space-x-3">
+                                    <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-3 rounded-xl font-medium text-white bg-white/5 hover:bg-white/10 transition-colors w-1/3">
+                                        Cancel
+                                    </button>
+                                    <button onClick={handleSubmit(onSubmit)} type="button" disabled={isSubmitting} className="px-4 py-3 rounded-xl font-bold tracking-wide text-white bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all w-2/3 flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                                        {isSubmitting ? 'Creating...' : 'Create Order'}
+                                    </button>
+                                </div>
                             </div>
+                        </div>
 
-                            <div className="flex justify-end space-x-3 pt-4">
-                                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-5 py-2 rounded-lg text-textMuted hover:bg-white/5 transition-colors">
-                                    Discard
-                                </button>
-                                <button type="submit" className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-primary/20 transition-all">
-                                    Create Draft Order
+                        {/* Main Content: Order Items Grid */}
+                        <div className="w-2/3 bg-[#16213e] flex flex-col relative z-0">
+                            {/* Decorative Background Blob */}
+                            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1e293b]/50 backdrop-blur-md sticky top-0 z-10">
+                                <h3 className="text-lg font-bold text-white flex items-center">
+                                    <FiShoppingCart className="mr-2 text-primary" /> Order Manifest
+                                </h3>
+                                <button 
+                                    type="button" 
+                                    onClick={() => append({ raw_material: '', quantity_ordered: 1, unit_price: 0 })}
+                                    className="text-sm px-4 py-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/30 rounded-lg flex items-center space-x-2 transition-all font-medium"
+                                >
+                                    <FiPlus /> <span>Add Item</span>
                                 </button>
                             </div>
-                        </form>
+                            
+                            <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar relative z-10">
+                                <div className="grid grid-cols-12 gap-3 text-xs font-bold text-textMuted uppercase tracking-wider px-2 mb-2 items-center">
+                                    <div className="col-span-1 text-center">#</div>
+                                    <div className="col-span-4">Raw Material</div>
+                                    <div className="col-span-2 text-center">Qty</div>
+                                    <div className="col-span-2 text-center">Price / Unit</div>
+                                    <div className="col-span-2 text-right">Ext. Total</div>
+                                    <div className="col-span-1 text-center">Drop</div>
+                                </div>
+                                
+                                {fields.length === 0 && (
+                                    <div className="text-center py-12 opacity-50">
+                                        <p className="text-white border border-dashed border-white/20 p-8 rounded-xl bg-white/5 inline-block">No items added to manifest yet.</p>
+                                    </div>
+                                )}
+
+                                {fields.map((field, index) => {
+                                    const qty = parseFloat(watchedItems[index]?.quantity_ordered) || 0;
+                                    const price = parseFloat(watchedItems[index]?.unit_price) || 0;
+                                    const rowTotal = (qty * price).toFixed(2);
+                                    
+                                    return (
+                                        <div key={field.id} className="grid grid-cols-12 gap-3 items-center bg-white/5 hover:bg-white/10 border border-white/5 p-2 rounded-xl transition-colors group">
+                                            <div className="col-span-1 text-center text-textMuted font-mono text-sm opacity-50 group-hover:opacity-100 transition-opacity">
+                                                {String(index + 1).padStart(2, '0')}
+                                            </div>
+                                            <div className="col-span-4">
+                                                <select {...register(`items.${index}.raw_material`)} className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none scrollbar-thin">
+                                                    <option value="" className="bg-[#0f172a]">Select Material...</option>
+                                                    {materials.filter(m => m.is_active || m.id === watchedItems[index]?.raw_material).map(m => (
+                                                        <option key={m.id} value={m.id} className="bg-[#0f172a]">{m.name} ({m.unit?.abbreviation || 'unit'})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <input type="number" step="0.001" placeholder="0" {...register(`items.${index}.quantity_ordered`)} className="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-2.5 text-sm text-center text-white focus:outline-none focus:border-primary transition-colors font-mono" />
+                                            </div>
+                                            <div className="col-span-2 relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-xs">{settings?.currency || '$'}</span>
+                                                <input type="number" step="0.01" placeholder="0.00" {...register(`items.${index}.unit_price`)} className="w-full bg-black/20 border border-white/10 rounded-lg pl-7 pr-2 py-2.5 text-sm text-right text-white focus:outline-none focus:border-primary transition-colors font-mono" />
+                                            </div>
+                                            <div className="col-span-2 text-right text-sm font-mono font-bold text-accent pr-2 shadow-sm">
+                                                {settings?.currency || '$'} {rowTotal}
+                                            </div>
+                                            <div className="col-span-1 flex justify-center">
+                                                <button type="button" onClick={() => remove(index)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                                    <FiTrash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {errors.items?.root && <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm flex items-center"><FiAlertCircle className="mr-2" />{errors.items.root.message}</div>}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -6,7 +6,7 @@ import {
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
   FiMenu, FiX, FiUser, FiCoffee,
   FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
-  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign
+  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {

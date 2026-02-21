@@ -2,14 +2,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0F172A;
-  --color-surface: #1E293B;
+  --color-background: var(--bg-color);
+  --color-surface: var(--surface-color);
   --color-primary: #3B82F6;
   --color-secondary: #10B981;
   --color-accent: #8B5CF6;
   --color-danger: #EF4444;
-  --color-textMain: #F8FAFC;
-  --color-textMuted: #94A3B8;
+  --color-textMain: var(--text-main);
+  --color-textMuted: var(--text-muted);
 
   --animate-fade-in: fadeIn 0.3s ease-out;
   --animate-slide-up: slideUp 0.4s ease-out;
@@ -38,6 +38,20 @@
 }
 
 @layer base {
+  :root {
+    --bg-color: #F1F5F9;
+    --surface-color: #FFFFFF;
+    --text-main: #0F172A;
+    --text-muted: #475569;
+  }
+
+  :root.dark {
+    --bg-color: #0F172A;
+    --surface-color: #1E293B;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-textMain);
@@ -49,11 +63,19 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-surface/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
+    @apply bg-surface/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl transition-colors duration-200;
+  }
+
+  .dark .glass-panel {
+    @apply border-white/10;
   }
 
   .glass-input {
-    @apply bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+    @apply bg-white/50 border border-slate-300 rounded-lg px-4 py-3 text-textMain placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+  }
+
+  .dark .glass-input {
+    @apply bg-slate-800/50 border-slate-700;
   }
 
   .btn-primary {
@@ -61,7 +83,11 @@
   }
 
   .btn-secondary {
-    @apply bg-surface hover:bg-slate-700 text-white border border-slate-600 font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center;
+    @apply bg-surface hover:bg-slate-100 text-textMain border border-slate-300 font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center;
+  }
+
+  .dark .btn-secondary {
+    @apply hover:bg-slate-700 border-slate-600;
   }
 }
 
@@ -71,7 +97,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F172A;
+  background: var(--bg-color);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -81,4 +107,19 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* ============================================================
+   PRINT MEDIA — hide all app chrome, show nothing by default.
+   The actual receipt is printed from printReceipt() which
+   opens its own isolated popup window.
+   ============================================================ */
+@media print {
+
+  /* Hide absolutely everything on the main app page */
+  body>* {
+    display: none !important;
+  }
+
+  /* If something must be visible, add it explicitly with print:block */
 }

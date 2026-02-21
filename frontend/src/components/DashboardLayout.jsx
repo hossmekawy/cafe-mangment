@@ -4,13 +4,13 @@ import useAuthStore from '../store/authStore';
 import useSettingsStore from '../store/settingsStore';
 import { 
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
-  FiMenu, FiX, FiUser, FiCoffee,
+  FiMenu, FiX, FiUser, FiCoffee, FiUsers, FiGift,
   FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
-  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat
+  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateTheme } = useAuthStore();
   const { settings, fetchSettings } = useSettingsStore();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,6 +27,23 @@ const DashboardLayout = () => {
     navigate('/login');
   };
 
+  // Theme Logic
+  const toggleTheme = async () => {
+    const isDark = user?.theme_preference === 'dark';
+    const newTheme = isDark ? 'light' : 'dark';
+    await updateTheme(newTheme);
+  };
+
+  useEffect(() => {
+    // Apply class to HTML element based on user preference
+    const root = document.documentElement;
+    if (user?.theme_preference === 'light') {
+      root.classList.remove('dark');
+    } else {
+      root.classList.add('dark'); // 'dark' and 'system' both default to dark here for simplicity unless system explicitly means OS preference
+    }
+  }, [user?.theme_preference]);
+
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [purchasingOpen, setPurchasingOpen] = useState(false);
 
@@ -38,6 +55,10 @@ const DashboardLayout = () => {
 
   const navLinks = [
     { name: 'Dashboard', path: '/', icon: FiHome, show: true },
+    { name: 'Point of Sale (POS)', path: '/pos', icon: FiCoffee, show: true },
+    { name: 'Floor Plan (Tables)', path: '/pos/floor-plan', icon: FiLayers, show: true },
+    { name: 'Kitchen Display (KDS)', path: '/pos/kds', icon: FiClock, show: true },
+    { name: 'Orders History', path: '/orders', icon: FiShoppingBag, show: true },
     {
       name: 'Inventory Mgt', icon: FiBox, show: isAdminOrManager,
       isOpen: inventoryOpen, setIsOpen: setInventoryOpen,
@@ -46,6 +67,7 @@ const DashboardLayout = () => {
         { name: 'Raw Materials', path: '/inventory/materials', icon: FiList },
         { name: 'Measurement Units', path: '/inventory/units', icon: FiBox },
         { name: 'Unit Conversions', path: '/inventory/conversions', icon: FiRepeat },
+        { name: 'Menu Categories', path: '/inventory/categories', icon: FiFolder },
         { name: 'Products (Menu)', path: '/inventory/products', icon: FiCoffee },
         { name: 'Recipes', path: '/inventory/recipes', icon: FiBookOpen },
         { name: 'Physical Counts', path: '/inventory/counts', icon: FiClipboard },
@@ -64,6 +86,8 @@ const DashboardLayout = () => {
       ]
     },
     { name: 'Register Staff', path: '/register', icon: FiUserPlus, show: isAdminOrManager },
+    { name: 'Customer CRM', path: '/customers', icon: FiUsers, show: true },
+    { name: 'Promotions Engine', path: '/promotions', icon: FiGift, show: isAdminOrManager },
     { name: 'Global Settings', path: '/settings', icon: FiSettings, show: isAdminOrManager },
   ];
 
@@ -187,6 +211,15 @@ const DashboardLayout = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+             {/* Theme Toggle Button */}
+             <button
+               onClick={toggleTheme}
+               className="p-2 rounded-full text-textMuted hover:text-white hover:bg-white/5 transition-colors focus:outline-none"
+               title="Toggle Dark/Light Mode"
+             >
+               {user?.theme_preference === 'light' ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
+             </button>
+
              <div className="relative">
                 <button 
                    className="flex items-center space-x-3 p-1 rounded-full hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"

@@ -85,7 +85,7 @@ const Login = () => {
           <div className="space-y-4">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiUser className="h-5 w-5 text-slate-400" />
+                <FiUser className="h-5 w-5 text-textMuted" />
               </div>
               <input
                 id="username"
@@ -102,7 +102,7 @@ const Login = () => {
             {isPinMode ? (
                <div className="relative">
                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                   <FiLock className="h-5 w-5 text-slate-400" />
+                   <FiLock className="h-5 w-5 text-textMuted" />
                  </div>
                  <input
                    id="pin"
@@ -120,7 +120,7 @@ const Login = () => {
             ) : (
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiLock className="h-5 w-5 text-slate-400" />
+                    <FiLock className="h-5 w-5 text-textMuted" />
                     </div>
                     <input
                     id="password"

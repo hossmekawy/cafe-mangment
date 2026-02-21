@@ -104,6 +104,22 @@ const useAuthStore = create((set, get) => ({
         localStorage.removeItem('refresh_token');
         set({ user: null, isAuthenticated: false });
     }
+  },
+
+  // Update User Theme
+  updateTheme: async (theme) => {
+    try {
+      const res = await axiosInstance.post('/auth/me/theme/', { theme });
+      if (res.data.success) {
+        set(state => ({
+          user: { ...state.user, theme_preference: theme }
+        }));
+        return { success: true };
+      }
+    } catch (e) {
+      console.error("Failed to update theme preference:", e);
+      return { success: false };
+    }
   }
 }));
 

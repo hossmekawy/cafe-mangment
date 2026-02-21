@@ -150,38 +150,120 @@ class PhysicalCountItem(models.Model):
     discrepancy_value = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.TextField(blank=True, null=True)
 
+class MenuCategory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=150)
+    name_ar = models.CharField(max_length=150, blank=True, null=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategories')
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='categories/', blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Optional sorting
+    order = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Menu Categories"
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return f"{self.parent.name} > {self.name}" if self.parent else self.name
+
+
 class Product(models.Model):
-    CATEGORY_CHOICES = (
-        ('hot_drinks', 'Hot Drinks'),
-        ('cold_drinks', 'Cold Drinks'),
-        ('pastries', 'Pastries'),
-        ('desserts', 'Desserts'),
-        ('addons', 'Add-ons'),
-        ('other', 'Other'),
+    AVAILABILITY_CHOICES = (
+        ('available', 'Available'),
+        ('out_of_stock', 'Out of Stock'),
+        ('hidden', 'Hidden'),
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     name_ar = models.CharField(max_length=150, blank=True, null=True)
-    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Old category field kept temporarily to avoid makemigrations crashing during transition
+    legacy_category = models.CharField(max_length=30, null=True, blank=True)
+    
+    # New relationships
+    category = models.ForeignKey(MenuCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Base/Dine-in Price")
+    price_takeaway = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_delivery = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Calculated or fixed cost for profit margins")
+    
+    # NEW: Direct raw material link for simple items (Water, Cake) 
+    linked_raw_material = models.ForeignKey(RawMaterial, on_delete=models.SET_NULL, null=True, blank=True, help_text="If set, selling this product deducts 1 unit of this raw material directly instead of using a Recipe.")
+    
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='products/', blank=True, null=True)
-    is_active = models.BooleanField(default=True)
+    
+    availability_status = models.CharField(max_length=30, choices=AVAILABILITY_CHOICES, default='available')
+    is_popular = models.BooleanField(default=False)
+    preparation_time = models.IntegerField(help_text="Average preparation time in minutes", default=5)
+    
+    is_seasonal = models.BooleanField(default=False)
+    season_start_date = models.DateField(null=True, blank=True)
+    season_end_date = models.DateField(null=True, blank=True)
+    
+    available_time_start = models.TimeField(null=True, blank=True, help_text="e.g. 06:00 for breakfast menu")
+    available_time_end = models.TimeField(null=True, blank=True, help_text="e.g. 11:30 for breakfast menu")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
+class ProductVariation(models.Model):
+    """ Used for sizes (Small, Medium, Large) or types """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations')
+    
+    size_name = models.CharField(max_length=100) # e.g. "Small", "Large"
+    
+    # Overrides for this specific size
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    price_takeaway = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_delivery = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.product.name} - {self.size_name}"
+
+class ComboItem(models.Model):
+    """ Bridges a parent Meal/Combo Product to its child Products """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent_combo = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='combo_items')
+    child_product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='part_of_combos')
+    
+    quantity = models.IntegerField(default=1)
+    extra_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Added to combo base price if selected")
+
+    def __str__(self):
+        return f"{self.quantity}x {self.child_product.name} in {self.parent_combo.name}"
+
 class Recipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
+    # A recipe can belong to a base product OR a specific variation (size/type)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipes', null=True, blank=True)
+    variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
+    
     yield_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
     preparation_time = models.IntegerField(help_text="In minutes", default=5)
     notes = models.TextField(blank=True, null=True)
     
+    class Meta:
+        # A specific variation can only have one recipe. A product without variations can have one base recipe.
+        unique_together = [['product', 'variation']]
+
     def __str__(self):
+        if self.variation:
+            return f"Recipe for {self.variation.product.name} - {self.variation.size_name}"
         return f"Recipe for {self.product.name if self.product else 'Unknown'}"
 
 class RecipeIngredient(models.Model):

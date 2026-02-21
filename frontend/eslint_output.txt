@@ -1,0 +1,9 @@
+
+E:\projects\Cafe System\frontend\src\pages\purchasing\GoodsReceivedNotes.jsx
+   54:11  error    'watchedSupplier' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                 no-unused-vars
+   79:18  error    'error' is defined but never used                                                                                                               no-unused-vars
+  113:8   warning  React Hook useEffect has missing dependencies: 'purchaseOrders', 'replace', and 'setValue'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  204:8   warning  React Hook useMemo has an unnecessary dependency: 'settings'. Either exclude it or remove the dependency array                                  react-hooks/exhaustive-deps
+
+✖ 4 problems (2 errors, 2 warnings)
+

@@ -347,3 +347,17 @@ class SessionRevokeView(APIView):
             return Response({"success": True, "message": "All other sessions revoked."})
 
 
+class UpdateThemeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        theme = request.data.get('theme')
+        if theme not in ['light', 'dark', 'system']:
+            return Response({"success": False, "error": "INVALID_THEME", "detail": "Theme must be light, dark, or system."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        user.theme_preference = theme
+        user.save(update_fields=['theme_preference'])
+        return Response({"success": True, "message": "Theme preference updated.", "theme": theme})
+
+

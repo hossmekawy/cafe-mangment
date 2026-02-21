@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import (
     Unit, UnitConversion, StorageLocation, RawMaterial, StockBatch,
-    WasteLog, StockMovement, PhysicalCount,
-    PhysicalCountItem, Product, Recipe, RecipeIngredient, Notification
+    StockMovement, WasteLog, PhysicalCountItem, PhysicalCount,
+    MenuCategory, Product, ProductVariation, ComboItem, Recipe, RecipeIngredient, Notification
 )
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -46,7 +46,7 @@ class RawMaterialListSerializer(serializers.ModelSerializer):
         model = RawMaterial
         fields = [
             'id', 'name', 'name_ar', 'category', 'current_stock', 
-            'minimum_stock', 'unit_abbreviation', 'storage_location_name', 
+            'minimum_stock', 'reorder_quantity', 'unit', 'unit_abbreviation', 'storage_location_name', 
             'preferred_supplier_name', 'cost_per_unit', 'is_active', 'expiry_tracked'
         ]
 
@@ -92,7 +92,28 @@ class PhysicalCountSerializer(serializers.ModelSerializer):
         model = PhysicalCount
         fields = '__all__'
 
+class MenuCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuCategory
+        fields = '__all__'
+
+class ProductVariationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVariation
+        fields = '__all__'
+
+class ComboItemSerializer(serializers.ModelSerializer):
+    child_product_name = serializers.CharField(source='child_product.name', read_only=True)
+    class Meta:
+        model = ComboItem
+        fields = '__all__'
+
 class ProductSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    linked_raw_material_name = serializers.CharField(source='linked_raw_material.name', read_only=True)
+    variations = ProductVariationSerializer(many=True, read_only=True)
+    combo_items = ComboItemSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Product
         fields = '__all__'
@@ -109,11 +130,18 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = RecipeIngredientSerializer(many=True, read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
+    variation_name = serializers.CharField(source='variation.size_name', read_only=True)
+    target_name = serializers.SerializerMethodField()
     total_cost = serializers.SerializerMethodField()
     
     class Meta:
         model = Recipe
         fields = '__all__'
+
+    def get_target_name(self, obj):
+        if obj.variation:
+            return f"{obj.product.name if obj.product else ''} - {obj.variation.size_name}"
+        return obj.product.name if obj.product else 'Unknown'
 
     def get_total_cost(self, obj):
         return sum(ingredient.get_cost() for ingredient in obj.ingredients.all())

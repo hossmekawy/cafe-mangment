@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     UnitViewSet, UnitConversionViewSet, StorageLocationViewSet, RawMaterialViewSet,
     StockMovementViewSet, WasteLogViewSet, PhysicalCountViewSet,
-    ProductViewSet, RecipeViewSet, NotificationViewSet
+    ProductViewSet, RecipeViewSet, NotificationViewSet,
+    MenuCategoryViewSet, ProductVariationViewSet, ComboItemViewSet
 )
 
 router = DefaultRouter()
@@ -15,6 +16,9 @@ router.register(r'movements', StockMovementViewSet)
 router.register(r'waste', WasteLogViewSet)
 router.register(r'physical-counts', PhysicalCountViewSet)
 router.register(r'products', ProductViewSet)
+router.register(r'categories', MenuCategoryViewSet, basename='menucategory')
+router.register(r'product-variations', ProductVariationViewSet, basename='productvariation')
+router.register(r'combo-items', ComboItemViewSet, basename='comboitem')
 router.register(r'recipes', RecipeViewSet)
 router.register(r'alerts', NotificationViewSet)
 

@@ -7,16 +7,6 @@ export default {
   darkMode: 'class', // enabling dark mode for modern sleek appearance
   theme: {
     extend: {
-      colors: {
-        background: '#0F172A', // Sleek dark blue/black background
-        surface: '#1E293B',    // Lighter surface for cards
-        primary: '#3B82F6',    // Blue primary
-        secondary: '#10B981',  // Emerald secondary
-        accent: '#8B5CF6',     // Violet accent
-        danger: '#EF4444',
-        textMain: '#F8FAFC',
-        textMuted: '#94A3B8'
-      },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },

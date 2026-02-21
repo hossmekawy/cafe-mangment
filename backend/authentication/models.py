@@ -29,6 +29,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=150)
     avatar = models.TextField(blank=True, null=True, help_text="Base64 encoded string")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='cashier')
+    
+    THEME_CHOICES = [
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('system', 'System')
+    ]
+    theme_preference = models.CharField(max_length=10, choices=THEME_CHOICES, default='dark')
+    
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')

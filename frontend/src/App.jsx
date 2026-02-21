@@ -10,6 +10,7 @@ import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import RawMaterials from './pages/inventory/RawMaterials';
 import Units from './pages/inventory/Units';
 import UnitConversions from './pages/inventory/UnitConversions';
+import Categories from './pages/inventory/Categories';
 import Products from './pages/inventory/Products';
 import Recipes from './pages/inventory/Recipes';
 import PhysicalCounts from './pages/inventory/PhysicalCounts';
@@ -19,6 +20,13 @@ import PurchasingDashboard from './pages/purchasing/PurchasingDashboard';
 import PurchaseOrders from './pages/purchasing/PurchaseOrders';
 import GoodsReceivedNotes from './pages/purchasing/GoodsReceivedNotes';
 import Invoices from './pages/purchasing/Invoices';
+import POSDashboard from './pages/pos/POSDashboard';
+import FloorPlan from './pages/pos/FloorPlan';
+import KDS from './pages/pos/KDS';
+import CustomersList from './pages/customers/CustomersList';
+import CustomerProfile from './pages/customers/CustomerProfile';
+import PromotionsDashboard from './pages/promotions/PromotionsDashboard';
+import OrdersPage from './pages/orders/OrdersPage';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -51,6 +59,19 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             
+            {/* Customers Routes */}
+            <Route path="/customers" element={<CustomersList />} />
+            <Route path="/customers/:id" element={<CustomerProfile />} />
+
+            {/* Promotions Routes */}
+            <Route path="/promotions" element={<PromotionsDashboard />} />
+            
+            {/* POS Routes (Accessible to all authenticated staff) */}
+            <Route path="/pos" element={<POSDashboard />} />
+            <Route path="/pos/floor-plan" element={<FloorPlan />} />
+            <Route path="/pos/kds" element={<KDS />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            
             {/* Protected Routes (Manager & Super Admin only) */}
             <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
               <Route path="/settings" element={<Settings />} />
@@ -61,6 +82,7 @@ function App() {
               <Route path="/inventory/materials" element={<RawMaterials />} />
               <Route path="/inventory/units" element={<Units />} />
               <Route path="/inventory/conversions" element={<UnitConversions />} />
+              <Route path="/inventory/categories" element={<Categories />} />
               <Route path="/inventory/products" element={<Products />} />
               <Route path="/inventory/recipes" element={<Recipes />} />
               <Route path="/inventory/counts" element={<PhysicalCounts />} />

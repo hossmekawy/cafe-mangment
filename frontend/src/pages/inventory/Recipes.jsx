@@ -61,6 +61,7 @@ const selectStyles = {
 const Recipes = () => {
     const [recipes, setRecipes] = useState([]);
     const [products, setProducts] = useState([]);
+    const [variations, setVariations] = useState([]);
     const [materials, setMaterials] = useState([]);
     const [units, setUnits] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -90,14 +91,16 @@ const Recipes = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [recipesRes, prodRes, matRes, unitsRes] = await Promise.all([
+            const [recipesRes, prodRes, varRes, matRes, unitsRes] = await Promise.all([
                 inventoryApi.getRecipes(),
                 inventoryApi.getProducts(),
+                inventoryApi.getVariations(),
                 inventoryApi.getMaterials(),
                 inventoryApi.getUnits()
             ]);
             setRecipes(recipesRes.data);
             setProducts(prodRes.data);
+            setVariations(varRes.data);
             setMaterials(matRes.data);
             setUnits(unitsRes.data);
         } catch (error) {
@@ -150,7 +153,7 @@ const Recipes = () => {
         if (recipe) {
             // Need to map the existing ingredients into the form format
             reset({
-                product: recipe.product,
+                product: recipe.variation ? recipe.variation : recipe.product,
                 yield_quantity: recipe.yield_quantity,
                 preparation_time: recipe.preparation_time,
                 notes: recipe.notes || '',
@@ -196,7 +199,13 @@ const Recipes = () => {
             setIsBuilderOpen(false);
             fetchData();
         } catch (error) {
-            const errMsg = error.response?.data?.product?.[0] || error.response?.data?.non_field_errors?.[0] || 'Failed to save recipe (Product might already have a recipe)';
+            console.error("Recipe Save Error:", error.response?.data || error.message);
+            const data = error.response?.data;
+            const errMsg = data?.product?.[0] || 
+                           data?.non_field_errors?.[0] || 
+                           data?.detail || 
+                           error.message ||
+                           'Failed to save recipe';
             toast.error(errMsg);
         }
     };
@@ -215,7 +224,7 @@ const Recipes = () => {
     const columns = useMemo(() => [
         {
             header: 'Target Product',
-            accessorKey: 'product_name',
+            accessorKey: 'target_name', // Updated to use the new backend serializer field
             cell: info => <span className="font-bold text-white">{info.getValue() || 'Unknown Product'}</span>
         },
         {
@@ -385,16 +394,38 @@ const Recipes = () => {
                                             <Controller
                                                 name="product"
                                                 control={control}
-                                                render={({ field }) => (
-                                                    <Select
-                                                        {...field}
-                                                        options={products.filter(p => p.is_active).map(p => ({ value: p.id, label: p.name }))}
-                                                        styles={selectStyles}
-                                                        placeholder="Select Product to link..."
-                                                        value={products.map(p => ({ value: p.id, label: p.name })).find(p => p.value === field.value)}
-                                                        onChange={val => field.onChange(val.value)}
-                                                    />
-                                                )}
+                                                render={({ field: { onChange, value, ref } }) => {
+                                                    // Map base products
+                                                    const productOptions = products
+                                                        .filter(p => p.availability_status === 'available')
+                                                        .map(p => ({ value: p.id, label: p.name, type: 'product' }));
+                                                        
+                                                    // Map variations (sizes)
+                                                    const variationOptions = variations
+                                                        .filter(v => v.is_active)
+                                                        .map(v => {
+                                                            const baseProduct = products.find(p => p.id === v.product);
+                                                            return { 
+                                                                value: v.id, 
+                                                                label: `${baseProduct ? baseProduct.name : 'Unknown'} - ${v.size_name}`,
+                                                                type: 'variation' 
+                                                            };
+                                                        });
+                                                        
+                                                    const combinedOptions = [...productOptions, ...variationOptions];
+
+                                                    return (
+                                                        <Select
+                                                            ref={ref}
+                                                            options={combinedOptions}
+                                                            styles={selectStyles}
+                                                            placeholder="Select Product to link..."
+                                                            value={combinedOptions.find(c => c.value === value) || ''}
+                                                            onChange={val => onChange(val ? val.value : '')}
+                                                            isClearable
+                                                        />
+                                                    );
+                                                }}
                                             />
                                             {errors.product && <span className="text-red-400 text-xs mt-1 block">{errors.product.message}</span>}
                                         </div>

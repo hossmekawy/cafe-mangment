@@ -4,7 +4,7 @@ from .views import (
     RegisterView, CustomTokenObtainPairView, LogoutView, MeView,
     ChangePasswordView, ForgotPasswordView, ResetPasswordView,
     SetPINView, PINLoginView, SessionListView, SessionRevokeView,
-    AdminUserListView, AdminUserCreateView
+    AdminUserListView, AdminUserCreateView, UpdateThemeView
 )
 
 urlpatterns = [
@@ -13,6 +13,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='auth_logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('me/', MeView.as_view(), name='auth_me'),
+    path('me/theme/', UpdateThemeView.as_view(), name='auth_update_theme'),
     
     path('admin/users/', AdminUserListView.as_view(), name='admin_user_list'),
     path('admin/users/create/', AdminUserCreateView.as_view(), name='admin_user_create'),

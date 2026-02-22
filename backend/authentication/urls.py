@@ -6,7 +6,7 @@ from .views import (
     SetPINView, PINLoginView, SessionListView, SessionRevokeView,
     AdminUserListView, AdminUserCreateView, UpdateThemeView,
     AdminUserDetailView, AdminUserAuditLogView, AdminUserSessionView,
-    BranchListView
+    BranchListView, BranchDetailView, VerifyManagerPINView
 )
 
 urlpatterns = [
@@ -24,6 +24,7 @@ urlpatterns = [
     path('admin/users/<uuid:pk>/sessions/', AdminUserSessionView.as_view(), name='admin_user_sessions'),
     
     path('branches/', BranchListView.as_view(), name='branch_list'),
+    path('branches/<uuid:pk>/', BranchDetailView.as_view(), name='branch_detail'),
     
     path('password/change/', ChangePasswordView.as_view(), name='auth_change_password'),
     path('password/forgot/', ForgotPasswordView.as_view(), name='auth_forgot_password'),
@@ -31,6 +32,7 @@ urlpatterns = [
     
     path('pin/set/', SetPINView.as_view(), name='auth_set_pin'),
     path('pin/login/', PINLoginView.as_view(), name='auth_pin_login'),
+    path('pin/verify-manager/', VerifyManagerPINView.as_view(), name='auth_verify_manager_pin'),
     
     path('sessions/', SessionListView.as_view(), name='auth_sessions'),
     path('sessions/<uuid:pk>/', SessionRevokeView.as_view(), name='auth_session_revoke'),

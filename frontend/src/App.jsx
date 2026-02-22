@@ -7,6 +7,7 @@ import RegisterStaff from './pages/RegisterStaff';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import UserManagement from './pages/settings/UserManagement';
+import BranchManagement from './pages/settings/BranchManagement';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import RawMaterials from './pages/inventory/RawMaterials';
 import Units from './pages/inventory/Units';
@@ -39,6 +40,8 @@ import CorporateInvoices from './pages/finance/CorporateInvoices';
 import FinancialReports from './pages/finance/FinancialReports';
 import EndOfDay from './pages/finance/EndOfDay';
 
+import ReportsDashboard from './pages/reports/ReportsDashboard';
+
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -68,26 +71,32 @@ function App() {
         {/* Protected Routes (Authenticated any role) */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            
+            {/* Routes explicitly hidden from 'cashier' role */}
+            <Route element={<ProtectedRoute excludedRoles={['cashier']} />}>
+              <Route path="/" element={<Dashboard />} />
+              
+              {/* Customers Routes */}
+              <Route path="/customers" element={<CustomersList />} />
+              <Route path="/customers/:id" element={<CustomerProfile />} />
+
+              {/* Promotions Routes */}
+              <Route path="/promotions" element={<PromotionsDashboard />} />
+              <Route path="/orders" element={<OrdersPage />} />
+            </Route>
+
             <Route path="/profile" element={<Profile />} />
             
-            {/* Customers Routes */}
-            <Route path="/customers" element={<CustomersList />} />
-            <Route path="/customers/:id" element={<CustomerProfile />} />
-
-            {/* Promotions Routes */}
-            <Route path="/promotions" element={<PromotionsDashboard />} />
-            
-            {/* POS Routes (Accessible to all authenticated staff) */}
+            {/* POS Routes (Accessible to all authenticated staff, including cashiers) */}
             <Route path="/pos" element={<POSDashboard />} />
             <Route path="/pos/floor-plan" element={<FloorPlan />} />
             <Route path="/pos/kds" element={<KDS />} />
-            <Route path="/orders" element={<OrdersPage />} />
             
             {/* Protected Routes (Manager & Super Admin only) */}
             <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/users" element={<UserManagement />} />
+              <Route path="/settings/branches" element={<BranchManagement />} />
               <Route path="/register" element={<RegisterStaff />} />
               
               {/* Inventory & Purchasing */}
@@ -113,11 +122,16 @@ function App() {
               <Route path="/finance/corporate-invoices" element={<CorporateInvoices />} />
               <Route path="/finance/reports" element={<FinancialReports />} />
               <Route path="/finance/end-of-day" element={<EndOfDay />} />
+
+              {/* Reports Engine */}
+              <Route path="/reports" element={<ReportsDashboard />} />
             </Route>
 
-            {/* Finance Module - Cashier access allowed */}
-            <Route path="/finance/cash-register" element={<CashRegister />} />
-            <Route path="/finance/petty-cash" element={<PettyCash />} />
+            {/* Finance Module - Staff/Exclude Cashier */}
+            <Route element={<ProtectedRoute excludedRoles={['cashier']} />}>
+              <Route path="/finance/cash-register" element={<CashRegister />} />
+              <Route path="/finance/petty-cash" element={<PettyCash />} />
+            </Route>
 
           </Route>
         </Route>

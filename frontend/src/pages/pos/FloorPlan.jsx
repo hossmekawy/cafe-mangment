@@ -372,7 +372,7 @@ const FloorPlan = () => {
     };
 
     return (
-        <div className="h-screen flex bg-[#0f172a] overflow-hidden p-6 gap-6">
+        <div className="h-full flex bg-[#0f172a] overflow-hidden p-6 gap-6 rounded-2xl">
             
             {/* LIFT SIDE: FLOOR CANVAS */}
             <div className="flex-1 flex flex-col h-full glass-panel border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl">
@@ -641,12 +641,38 @@ const FloorPlan = () => {
                                     </div>
                                 </div>
                                 
-                                {selectedTable.status === 'occupied' && (
-                                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-center mt-4">
-                                        <p className="text-white font-bold mb-2">Active Order</p>
-                                        <button className="w-full py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-bold shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all">
-                                            View Order
-                                        </button>
+                                {selectedTable.status === 'occupied' && selectedTable.active_order ? (
+                                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mt-4 flex flex-col flex-1 min-h-[250px] shadow-inner mb-2">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <div>
+                                                <p className="text-xs text-primary font-bold uppercase tracking-widest">Active Order</p>
+                                                <p className="text-white font-black text-sm">#{selectedTable.active_order.order_number}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-primary/70 font-mono text-xs">Total</p>
+                                                <p className="text-emerald-400 font-bold tracking-tight text-sm">${parseFloat(selectedTable.active_order.total_amount).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                        {selectedTable.active_order.customer && (
+                                            <p className="text-xs text-textMuted mb-2 bg-white/5 px-2 py-1 rounded inline-block w-max">Customer: <span className="text-white">{selectedTable.active_order.customer}</span></p>
+                                        )}
+                                        <p className="text-[10px] text-textMuted uppercase mb-1">Items</p>
+                                        <div className="space-y-2 border-t border-white/5 pt-2 flex-1 overflow-y-auto custom-scrollbar">
+                                            {selectedTable.active_order.items.map((item, idx) => (
+                                                <div key={idx} className="flex justify-between items-center text-xs">
+                                                    <span className="text-white/80"><span className="text-primary font-bold">{item.quantity}x</span> {item.product_name}</span>
+                                                    <span className="text-textMuted font-mono bg-black/30 px-1.5 py-0.5 rounded text-[10px]">${item.total_price}</span>
+                                                </div>
+                                            ))}
+                                            {selectedTable.active_order.items.length === 0 && (
+                                                <div className="text-center text-textMuted text-xs py-4">No items yet</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : selectedTable.status === 'occupied' && (
+                                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mt-4 text-center">
+                                       <p className="text-primary text-xs font-bold mb-1">Occupied (No pending POS order)</p>
+                                       <p className="text-textMuted text-xs">Table marked occupied manually.</p>
                                     </div>
                                 )}
                                 

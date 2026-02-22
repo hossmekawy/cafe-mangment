@@ -120,7 +120,7 @@ export default function FinancialReports() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="glass-panel p-6 h-[400px]">
                         <h3 className="font-bold text-white mb-6">Cash In by Method</h3>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                             <PieChart>
                                 <Pie
                                     data={reportData.cash_in_by_method || []} cx="50%" cy="45%" innerRadius={80} outerRadius={110}
@@ -137,7 +137,7 @@ export default function FinancialReports() {
                     </div>
                     <div className="glass-panel p-6 h-[400px]">
                         <h3 className="font-bold text-white mb-6">Daily In/Out Trend</h3>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                             <LineChart margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                                 <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} allowDuplicatedCategory={false} />
@@ -193,7 +193,7 @@ export default function FinancialReports() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="glass-panel p-6 h-[400px]">
                         <h3 className="font-bold text-white mb-6">Revenue by Category</h3>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                             <BarChart data={reportData.by_category} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
                                 <XAxis type="number" stroke="#94a3b8" fontSize={12} />
@@ -274,7 +274,7 @@ export default function FinancialReports() {
 
                 <div className="glass-panel p-6 h-[400px]">
                     <h3 className="font-bold text-white mb-6">Expense Trend (Monthly)</h3>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                         <BarChart data={reportData.monthly_trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                             <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString([], {month:'short', year:'numeric'})} />

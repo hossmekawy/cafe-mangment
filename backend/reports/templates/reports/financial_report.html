@@ -1,0 +1,57 @@
+{% extends "reports/base_report.html" %}
+{% load arabic_filters %}
+
+{% block report_dates %}
+<p>
+    <strong>{% if lang == 'ar' %}{{ 'الفترة:'|reshape }}{% else %}Period:{% endif %}</strong>
+    {{ start_date }} - {{ end_date }}
+</p>
+{% endblock %}
+
+{% block summary_section %}
+<p>
+    {% if lang == 'ar' %}{{ 'الإيرادات:'|reshape }}{% else %}Revenue:{% endif %}
+    <span style="color: green">{{ summary.revenue|floatformat:2 }}</span>
+</p>
+<p>
+    {% if lang == 'ar' %}{{ 'المصروفات:'|reshape }}{% else %}Expenses:{% endif %}
+    <span style="color: red">{{ summary.expenses|floatformat:2 }}</span>
+</p>
+<p>
+    {% if lang == 'ar' %}{{ 'المهدر:'|reshape }}{% else %}Waste:{% endif %}
+    <span style="color: red">{{ summary.waste|floatformat:2 }}</span>
+</p>
+<p style="font-size: 1.2em; border-top: 1px solid #bdc3c7; padding-top: 10px;">
+    {% if lang == 'ar' %}{{ 'صافي الربح / الخسارة:'|reshape }}{% else %}Net Profit/Loss:{% endif %}
+    <strong {% if summary.profit < 0 %}style="color:red" {% else %}style="color:green" {% endif %}>
+        {{ summary.profit|floatformat:2 }}
+    </strong>
+</p>
+{% endblock %}
+
+{% block main_table %}
+<table>
+    <thead>
+        <tr>
+            <th>{% if lang == 'ar' %}{{ 'التصنيف'|reshape }}{% else %}Category{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'المبلغ'|reshape }}{% else %}Amount{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in financials %}
+        <tr>
+            <td>
+                {% if row.Category == 'Sales Revenue' and lang == 'ar' %}{{ 'إيرادات المبيعات'|reshape }}
+                {% elif row.Category == 'Total Expenses' and lang == 'ar' %}{{ 'إجمالي المصروفات'|reshape }}
+                {% elif row.Category == 'Waste Cost' and lang == 'ar' %}{{ 'تكلفة المهدر'|reshape }}
+                {% elif row.Category == 'Net Profit/Loss' and lang == 'ar' %}{{ 'صافي الربح / الخسارة'|reshape }}
+                {% else %}
+                {{ row.Category|reshape }}
+                {% endif %}
+            </td>
+            <td>{{ row.Amount|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -5,8 +5,10 @@ import toast from 'react-hot-toast';
 import { FiShoppingCart, FiSearch, FiX, FiCheck, FiCoffee, FiPlus, FiMinus, FiCreditCard, FiClock, FiLayers, FiUserCheck, FiGift, FiTrash2, FiEdit2 } from 'react-icons/fi';
 import ConfirmModal from '../../components/ConfirmModal';
 import { customersApi } from '../../api/customersApi';
+import { authApi } from '../../api/authApi';
 import useSettingsStore from '../../store/settingsStore';
 import { printReceipt } from './ReceiptPrinter';
+import { printKitchenTicket } from './KitchenPrinter';
 
 const POSDashboard = () => {
     const { user } = useAuthStore();
@@ -51,6 +53,13 @@ const POSDashboard = () => {
     const [activeOrderTotal, setActiveOrderTotal] = useState(0);
     const [showDraftsModal, setShowDraftsModal] = useState(false);
     const [draftOrders, setDraftOrders] = useState([]);
+    
+    // Manual Discounts & PIN Auth
+    const [manualDiscountRaw, setManualDiscountRaw] = useState('');
+    const [showDiscountModal, setShowDiscountModal] = useState(false);
+    const [showPinModal, setShowPinModal] = useState(false);
+    const [managerPin, setManagerPin] = useState('');
+    const [isVerifyingPin, setIsVerifyingPin] = useState(false);
     
     // No print state needed - printReceipt() opens its own window
 
@@ -148,6 +157,7 @@ const POSDashboard = () => {
         // Direct to payment — cart stays empty, pays by stored total
         setCart([]);
         setPayments([]);
+        setManualDiscountRaw(order.discount_amount || ''); // load saved discount if any
         setPaymentAmountInput(order.total_amount);
         setSelectedPaymentMethod('cash');
         setShowDraftsModal(false);
@@ -173,13 +183,14 @@ const POSDashboard = () => {
                     modifier_groups: [],
                     variations: [],
                 },
+                variation: item.variation ? { id: item.variation, size_name: item.variation_name, price: parseFloat(item.unit_price) } : null,
                 quantity:             item.quantity,
                 unit_price:           parseFloat(item.unit_price),
                 total_price:          parseFloat(item.total_price),
                 modifiers:            (item.modifiers_details || []).map(m => m.id),
                 modifiersObjects:     item.modifiers_details || [],
                 special_instructions: item.special_instructions || '',
-                cartKey: `${item.product}-${Date.now()}-${Math.random()}`,
+                cartKey: `${item.product}-${item.variation || 'base'}-${Date.now()}-${Math.random()}`,
             }));
 
             setCart(cartItems);
@@ -189,6 +200,7 @@ const POSDashboard = () => {
             setSelectedTable(fullOrder.table || null);
             setPayments([]);
             setPaymentAmountInput('');
+            setManualDiscountRaw(fullOrder.discount_amount || '');
 
             if (fullOrder.customer) {
                 customersApi.getCustomer(fullOrder.customer)
@@ -332,9 +344,14 @@ const POSDashboard = () => {
     // Loyalty Discount
     const loyaltyDiscount = pointsToRedeem ? (parseFloat(pointsToRedeem) * 0.5) : 0;
     
+    // Manual Discount
+    const manualDiscount = parseFloat(manualDiscountRaw) || 0;
+    
+    const combinedDiscount = loyaltyDiscount + manualDiscount;
+    
     // Total (If tax is inclusive, tax is already in subtotal, so we don't add it again)
     const totalWithoutTaxAddition = isTaxInclusive ? subtotal : (subtotal + estimatedTax);
-    const total = Math.max(0, totalWithoutTaxAddition + serviceCharge - loyaltyDiscount);
+    const total = Math.max(0, totalWithoutTaxAddition + serviceCharge - combinedDiscount);
 
     // Split Payments Logic
     const remainingBalance = Math.max(0, (activeOrderId ? parseFloat(activeOrderTotal) : total) - payments.reduce((sum, p) => sum + p.amount, 0));
@@ -374,10 +391,11 @@ const POSDashboard = () => {
             subtotal: subtotal.toFixed(2),
             tax_amount: estimatedTax.toFixed(2),
             service_charge: serviceCharge.toFixed(2),
-            discount_amount: loyaltyDiscount.toFixed(2),
+            discount_amount: combinedDiscount.toFixed(2),
             total_amount: total.toFixed(2),
             items: cart.map(item => ({
                 product: item.product.id,
+                variation: item.variation ? item.variation.id : null,
                 quantity: item.quantity,
                 modifiers: item.modifiers || [],
                 special_instructions: item.special_instructions || ''
@@ -391,9 +409,15 @@ const POSDashboard = () => {
                 // PATCH the existing draft with the new items list
                 await posApi.updateOrder(activeOrderId, orderData);
                 toast.success("Draft Updated!", { id: toastId });
+                
+                // Get the updated full order to print
+                const res = await posApi.getOrder(activeOrderId);
+                printKitchenTicket({ order: res.data, cart: null, isUpdate: true });
+
             } else {
-                await posApi.createOrder(orderData);
+                const res = await posApi.createOrder(orderData);
                 toast.success("Order Saved & Sent to Kitchen!", { id: toastId });
+                printKitchenTicket({ order: res.data, cart: null, isUpdate: false });
             }
             // Reset POS state
             setCart([]);
@@ -455,10 +479,11 @@ const POSDashboard = () => {
                     subtotal: subtotal.toFixed(2),
                     tax_amount: estimatedTax.toFixed(2),
                     service_charge: serviceCharge.toFixed(2),
-                    discount_amount: loyaltyDiscount.toFixed(2),
+                    discount_amount: combinedDiscount.toFixed(2),
                     total_amount: total.toFixed(2),
                     items: cart.map(item => ({
                         product: item.product.id,
+                        variation: item.variation ? item.variation.id : null,
                         quantity: item.quantity,
                         modifiers: item.modifiers,
                         special_instructions: item.special_instructions
@@ -467,6 +492,10 @@ const POSDashboard = () => {
                 const res = await posApi.createOrder(orderData);
                 orderIdToPay = res.data.id;
                 finalizedOrderData = res.data;
+                
+                // This is a direct payment of a new cart, so we must print the kitchen ticket too!
+                printKitchenTicket({ order: finalizedOrderData, cart: null, isUpdate: false });
+
             } else {
                 // If it was a draft, we need it to print. Let's fetch it if not currently held purely in frontend memory.
                 const res = await posApi.getOrders();
@@ -488,7 +517,7 @@ const POSDashboard = () => {
                     subtotal,
                     taxInfo: estimatedTax,
                     serviceCharge,
-                    discountInfo: loyaltyDiscount,
+                    discountInfo: combinedDiscount,
                     total,
                     payments: [...payments],
                     remainingBalance,
@@ -501,6 +530,7 @@ const POSDashboard = () => {
             setAttachedCustomer(null);
             setCustomerPhone('');
             setPointsToRedeem('');
+            setManualDiscountRaw('');
             setCheckoutModalOpen(false);
             setActiveOrderId(null);
             setActiveOrderTotal(0);
@@ -508,6 +538,36 @@ const POSDashboard = () => {
         } catch (error) {
             toast.error(error.response?.data?.error || error.response?.data?.detail || "Failed to process order", { id: toastId });
         }
+    };
+
+    const handleVerifyManagerPin = async (e) => {
+        e.preventDefault();
+        setIsVerifyingPin(true);
+        try {
+            await authApi.verifyManagerPIN({ pin: managerPin });
+            setShowPinModal(false);
+            setManagerPin('');
+            setShowDiscountModal(true);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || "Invalid Manager PIN");
+            setManagerPin('');
+        } finally {
+            setIsVerifyingPin(false);
+        }
+    };
+
+    const handleApplyManualDiscount = () => {
+        const disc = parseFloat(manualDiscountRaw) || 0;
+        if (disc < 0) {
+            toast.error("Discount cannot be negative");
+            return;
+        }
+        if (disc > subtotal + estimatedTax) {
+            toast.error("Discount cannot exceed order total");
+            return;
+        }
+        setShowDiscountModal(false);
+        toast.success(`Discount of ${settings?.currency || '$'}${disc.toFixed(2)} applied.`);
     };
 
     const renderModifierContent = () => {
@@ -520,7 +580,7 @@ const POSDashboard = () => {
                 {selectedProductForMod.variations?.length > 0 && (
                     <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                         <div className="px-4 py-3 bg-[#0f172a] border-b border-white/5">
-                            <h4 className="font-bold text-white text-sm">Select Size *</h4>
+                            <h4 className="font-bold text-white text-sm">Select Variation/Flavor *</h4>
                         </div>
                         <div className="p-3 grid grid-cols-3 gap-3">
                             {selectedProductForMod.variations.map(variation => (
@@ -606,8 +666,8 @@ const POSDashboard = () => {
     }
 
     return (
-        <div className="h-screen flex bg-background overflow-hidden">
-                {/* LIFT SIDE: PRODUCT GRID */}
+        <div className="h-full flex bg-background overflow-hidden" style={{ zoom: "0.8" }}>
+            {/* LIFT SIDE: PRODUCT GRID */}
             <div className="flex-1 flex flex-col h-full bg-surface rounded-tr-3xl">
                 <div className="p-6 pb-0 tracking-tight shrink-0">
                     <div className="flex justify-between items-center mb-6">
@@ -874,31 +934,49 @@ const POSDashboard = () => {
                                 <span className="font-mono">-{settings?.currency || '$'}{loyaltyDiscount.toFixed(2)}</span>
                             </div>
                         )}
+                        {manualDiscount > 0 && (
+                            <div className="flex justify-between text-green-400">
+                                <span>Manual Discount</span>
+                                <span className="font-mono">-{settings?.currency || '$'}{manualDiscount.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-textMain font-black text-xl pt-2 border-t border-slate-200 dark:border-white/10">
                             <span>Total</span>
                             <span className="text-primary font-mono">{settings?.currency || '$'}{total.toFixed(2)}</span>
                         </div>
                     </div>
                     
+                    
                     <div className="flex gap-2">
                         {(!activeOrderId) && (
                             <button 
                                 onClick={handleSendToKitchen}
                                 disabled={cart.length === 0 || orderType !== 'dine_in' || (orderType === 'dine_in' && !selectedTable)}
-                                className="w-1/3 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-4 rounded-xl shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-1/4 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <FiClock className="w-5 h-5 text-amber-400" />
-                                <span className="text-xs">Hold Order</span>
+                                <FiClock className="w-4 h-4 text-amber-400" />
+                                <span className="text-[10px] uppercase">Hold</span>
                             </button>
                         )}
                         
                         <button 
+                            onClick={() => setShowPinModal(true)}
+                            disabled={cart.length === 0 && !activeOrderId}
+                            className={`${activeOrderId ? 'w-1/3' : 'w-1/4'} bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                            <FiMinus className="w-4 h-4 text-primary" />
+                            <span className="text-[10px] uppercase">Discount</span>
+                        </button>
+                        
+                        <button 
                             onClick={handleCheckout}
                             disabled={(cart.length === 0 && !activeOrderId) || (orderType === 'dine_in' && !selectedTable && !activeOrderId)}
-                            className={`${activeOrderId ? 'w-full' : 'w-2/3'} bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform active:scale-[0.98] flex items-center justify-center space-x-2`}
+                            className={`flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-lg py-3 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform active:scale-[0.98] flex flex-col items-center justify-center space-y-0.5`}
                         >
-                            <FiCheck className="w-6 h-6" />
-                            <span>Checkout / Pay</span>
+                            <div className="flex items-center space-x-2">
+                                <FiCheck className="w-5 h-5" />
+                                <span>Pay</span>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -1206,9 +1284,88 @@ const POSDashboard = () => {
                 </div>
             )}
 
+            {/* MANAGER PIN AUTH MODAL */}
+            {showPinModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPinModal(false)}></div>
+                    <div className="relative bg-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-white/10 shadow-3xl animate-fade-in-up">
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
+                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                                Manager Auth
+                            </h3>
+                            <button onClick={() => setShowPinModal(false)} className="text-textMuted hover:text-textMain"><FiX /></button>
+                        </div>
+                        <form onSubmit={handleVerifyManagerPin} className="p-6">
+                            <label className="block text-sm font-bold text-textMuted mb-2 text-center">Enter Manager PIN</label>
+                            <input 
+                                type="password" 
+                                autoFocus
+                                value={managerPin}
+                                onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
+                                className="w-full bg-background border border-slate-200 dark:border-white/10 text-center text-textMain text-3xl tracking-[0.5em] p-4 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner mb-6 font-mono"
+                                maxLength={6}
+                                placeholder="----"
+                            />
+                            <button 
+                                type="submit"
+                                disabled={isVerifyingPin || managerPin.length < 4}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+                            >
+                                {isVerifyingPin ? 'Verifying...' : 'Authorize'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* DISCOUNT ENTRY MODAL */}
+            {showDiscountModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDiscountModal(false)}></div>
+                    <div className="relative bg-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-white/10 shadow-3xl animate-fade-in-up">
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
+                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                                <FiMinus className="text-primary" /> Apply Custom Discount
+                            </h3>
+                            <button onClick={() => setShowDiscountModal(false)} className="text-textMuted hover:text-textMain"><FiX /></button>
+                        </div>
+                        <div className="p-6">
+                            <div className="mb-6 flex justify-between items-center bg-background p-3 rounded-lg border border-white/5">
+                                <span className="text-textMuted text-sm font-bold">Subtotal + Tax</span>
+                                <span className="font-mono text-textMain">{settings?.currency || '$'}{(subtotal + estimatedTax).toFixed(2)}</span>
+                            </div>
+                            
+                            <label className="block text-sm font-bold text-textMuted mb-2">Discount Amount ({settings?.currency || '$'})</label>
+                            <input 
+                                type="number" 
+                                autoFocus
+                                value={manualDiscountRaw}
+                                onChange={(e) => setManualDiscountRaw(e.target.value)}
+                                className="w-full bg-background border border-slate-200 dark:border-white/10 text-textMain text-2xl p-4 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner mb-6 font-mono"
+                                placeholder="0.00"
+                            />
+                            
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => { setManualDiscountRaw(''); setShowDiscountModal(false); }}
+                                    className="flex-1 bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl transition-colors"
+                                >
+                                    Remove
+                                </button>
+                                <button 
+                                    onClick={handleApplyManualDiscount}
+                                    className="flex-[2] bg-primary hover:bg-primary/90 text-white font-black py-3 rounded-xl shadow-lg transition-transform active:scale-[0.98]"
+                                >
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
 
 export default POSDashboard;
-

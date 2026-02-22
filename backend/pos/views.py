@@ -23,7 +23,10 @@ class POSProductViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Only return products that have no category OR their category has show_in_pos=True
+        queryset = super().get_queryset().filter(
+            Q(category__isnull=True) | Q(category__show_in_pos=True)
+        )
         category = self.request.query_params.get('category', None)
         if category:
             queryset = queryset.filter(category=category)

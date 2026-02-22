@@ -5,7 +5,7 @@ import useSettingsStore from '../store/settingsStore';
 import { 
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
   FiMenu, FiX, FiUser, FiCoffee, FiUsers, FiGift,
-  FiBox, FiShoppingCart, FiChevronDown, FiChevronRight,
+  FiBox, FiShoppingCart, FiChevronDown, FiChevronRight, FiMapPin,
   FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag, FiFileText, FiTrendingUp, FiBriefcase, FiCheckSquare, FiPieChart
 } from 'react-icons/fi';
 
@@ -17,6 +17,7 @@ const DashboardLayout = () => {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const isAdminOrManager = ['manager', 'super_admin'].includes(user?.role);
+  const isCashier = user?.role === 'cashier';
 
   useEffect(() => {
     fetchSettings();
@@ -105,11 +106,13 @@ const DashboardLayout = () => {
     },
     { name: 'Customer CRM', path: '/customers', icon: FiUsers, show: true },
     { name: 'Promotions Engine', path: '/promotions', icon: FiGift, show: isAdminOrManager },
+    { name: 'Analytics & Reports', path: '/reports', icon: FiFileText, show: isAdminOrManager },
     {
       name: 'Administration', icon: FiSettings, show: isAdminOrManager,
       isOpen: adminOpen, setIsOpen: setAdminOpen,
       subLinks: [
         { name: 'User Management', path: '/settings/users', icon: FiUsers },
+        { name: 'Branch Management', path: '/settings/branches', icon: FiMapPin },
         { name: 'Register Staff', path: '/register', icon: FiUserPlus },
         { name: 'Global Settings', path: '/settings', icon: FiSettings },
       ]
@@ -117,10 +120,10 @@ const DashboardLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-textMain flex overflow-hidden">
+    <div className="h-screen bg-background text-textMain flex overflow-hidden">
       
       {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+      {!isCashier && sidebarOpen && (
         <div 
           className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm lg:hidden animate-fade-in"
           onClick={() => setSidebarOpen(false)}
@@ -128,6 +131,7 @@ const DashboardLayout = () => {
       )}
 
       {/* Sidebar */}
+      {!isCashier && (
       <aside className={`
         fixed inset-y-0 left-0 z-30 w-64 glass-panel transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 rounded-none border-y-0 border-l-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -220,19 +224,22 @@ const DashboardLayout = () => {
           </nav>
         </div>
       </aside>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full min-w-0">
         
         {/* Header */}
-        <header className="h-16 glass-panel rounded-none border-x-0 border-t-0 flex items-center justify-between px-4 sm:px-6 relative z-10 w-full overflow-visible">
+        <header className="h-16 glass-panel rounded-none border-x-0 border-t-0 flex items-center justify-between px-4 sm:px-6 relative z-40 w-full overflow-visible">
           <div className="flex items-center">
+            {!isCashier && (
             <button 
               className="lg:hidden p-2 text-textMuted hover:text-white transition-colors"
               onClick={() => setSidebarOpen(true)}
             >
               <FiMenu className="w-6 h-6" />
             </button>
+            )}
           </div>
           
           <div className="flex items-center space-x-4">
@@ -290,7 +297,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto w-full p-4 sm:p-6 lg:p-8 relative">
+        <main className="flex-1 flex flex-col overflow-x-hidden overflow-y-auto w-full p-4 sm:p-6 lg:p-8 relative">
           <Outlet />
         </main>
       </div>

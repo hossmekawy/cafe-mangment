@@ -65,6 +65,7 @@ const RegisterStaff = () => {
       // but if we leave it blank in formData, we must rely on backend default 'cafe1234'
       const payload = { ...formData };
       if (!payload.password) delete payload.password;
+      if (!payload.branch) payload.branch = null;
 
       const res = await authApi.createUser(payload);
       

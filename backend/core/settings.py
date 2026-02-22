@@ -25,8 +25,17 @@ SECRET_KEY = 'django-insecure-(jezid9oc&nph7v9)n_6k!k1n*!+!1_z2=)3l+l%q+69!4&uob
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['167.86.71.246', '167.86.71.246.nip.io', 'localhost', '127.0.0.1']
 
+CORS_ALLOWED_ORIGINS = [
+    "http://167.86.71.246",
+    "http://167.86.71.246:4173",
+    "http://167.86.71.246:5173",
+    "http://167.86.71.246.nip.io",
+    "http://167.86.71.246.nip.io:4173",
+    "http://167.86.71.246.nip.io:5173",
+    "http://localhost:5173",
+]
 
 # Application definition
 
@@ -52,6 +61,8 @@ INSTALLED_APPS = [
     'customers',
     'promotions',
     'finance',
+    'dashboard',
+    'reports',
 ]
 
 MIDDLEWARE = [
@@ -131,6 +142,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -146,6 +158,11 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'URL_FORMAT_OVERRIDE': None, # Let us handle `?format=` manually in views without 404ing
 }
 
 # CORS Settings

@@ -11,9 +11,12 @@ export const posApi = {
     getTables: () => axiosInstance.get('/pos/tables/'),
     getTable: (id) => axiosInstance.get(`/pos/tables/${id}/`),
     createTable: (data) => axiosInstance.post('/pos/tables/', data),
-    updateTable: (id, data) => axiosInstance.patch(`/pos/tables/${id}/`, data),
+    updateTable: (id, data) => axiosInstance.patch(`/pos/tables/${id}/`),
     updateTableStatus: (id, status) => axiosInstance.patch(`/pos/tables/${id}/`, { status }),
     deleteTable: (id) => axiosInstance.delete(`/pos/tables/${id}/`),
+    
+    // Modifiers
+    getModifiers: () => axiosInstance.get('/pos/modifiers/'),
     
     // Orders (with filter support)
     getOrders: (params = {}) => axiosInstance.get('/pos/orders/', { params }),

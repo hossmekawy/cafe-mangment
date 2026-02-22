@@ -17,10 +17,13 @@ export default function Categories() {
         description: '',
         parent: '',
         is_active: true,
+        show_in_pos: true,
         order: 0
     });
     
     // UI states
+    const [parentSearchText, setParentSearchText] = useState('');
+    const [showParentDropdown, setShowParentDropdown] = useState(false);
     const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
@@ -83,6 +86,18 @@ export default function Categories() {
     };
 
     const handleOpenModal = (category = null, parentId = null) => {
+        let initialParentSearch = '';
+        if (category && category.parent) {
+            const parentCat = categories.find(c => c.id === category.parent);
+            if (parentCat) initialParentSearch = parentCat.name;
+        } else if (parentId) {
+            const parentCat = categories.find(c => c.id === parentId);
+            if (parentCat) initialParentSearch = parentCat.name;
+        }
+
+        setParentSearchText(initialParentSearch);
+        setShowParentDropdown(false);
+
         if (category) {
             setEditingCategory(category);
             setFormData({
@@ -91,6 +106,7 @@ export default function Categories() {
                 description: category.description || '',
                 parent: category.parent || '',
                 is_active: category.is_active,
+                show_in_pos: category.show_in_pos !== undefined ? category.show_in_pos : true,
                 order: category.order || 0
             });
         } else {
@@ -101,6 +117,7 @@ export default function Categories() {
                 description: '',
                 parent: parentId || '',
                 is_active: true,
+                show_in_pos: true,
                 order: 0
             });
         }
@@ -307,16 +324,48 @@ export default function Categories() {
                                 
                                 <div>
                                     <label className="block text-sm font-medium text-textMuted mb-2">Parent Category</label>
-                                    <select 
-                                        value={formData.parent}
-                                        onChange={(e) => setFormData({...formData, parent: e.target.value})}
-                                        className="input w-full"
-                                    >
-                                        <option value="">None (Top Level)</option>
-                                        {getDropdownOptions().map(opt => (
-                                            <option key={opt.id} value={opt.id}>{opt.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={parentSearchText}
+                                            onChange={(e) => {
+                                                setParentSearchText(e.target.value);
+                                                setShowParentDropdown(true);
+                                                if (formData.parent) setFormData({...formData, parent: ''}); 
+                                            }}
+                                            onFocus={() => setShowParentDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowParentDropdown(false), 200)}
+                                            className="input w-full"
+                                            placeholder="Search Category (Leave blank for Top Level)"
+                                        />
+                                        {showParentDropdown && (
+                                            <div className="absolute z-10 w-full mt-1 bg-[#1e293b] border border-white/10 rounded-lg max-h-48 overflow-y-auto shadow-xl custom-scrollbar">
+                                                <div 
+                                                    className="p-3 hover:bg-white/5 cursor-pointer text-textMuted text-sm border-b border-white/5"
+                                                    onMouseDown={() => {
+                                                        setFormData({...formData, parent: ''});
+                                                        setParentSearchText('');
+                                                        setShowParentDropdown(false);
+                                                    }}
+                                                >
+                                                    None (Top Level)
+                                                </div>
+                                                {getDropdownOptions().filter(opt => opt.name.toLowerCase().includes(parentSearchText.toLowerCase())).map(opt => (
+                                                    <div 
+                                                        key={opt.id} 
+                                                        className={`p-3 hover:bg-white/5 cursor-pointer text-sm text-white ${formData.parent === opt.id ? 'bg-primary/20 text-primary' : ''}`}
+                                                        onMouseDown={() => {
+                                                            setFormData({...formData, parent: opt.id});
+                                                            setParentSearchText(opt.name.replace(/—/g, '').trim());
+                                                            setShowParentDropdown(false);
+                                                        }}
+                                                    >
+                                                        {opt.name}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -364,7 +413,7 @@ export default function Categories() {
                                             className="input w-full"
                                         />
                                     </div>
-                                    <div className="flex items-center mt-8">
+                                    <div className="flex flex-col space-y-3 mt-8">
                                         <label className="flex items-center space-x-3 cursor-pointer">
                                             <input 
                                                 type="checkbox"
@@ -373,6 +422,16 @@ export default function Categories() {
                                                 className="w-5 h-5 rounded border-white/20 bg-black/20 text-primary focus:ring-primary focus:ring-offset-gray-900"
                                             />
                                             <span className="text-textMain font-medium">Active</span>
+                                        </label>
+
+                                        <label className="flex items-center space-x-3 cursor-pointer">
+                                            <input 
+                                                type="checkbox"
+                                                checked={formData.show_in_pos}
+                                                onChange={(e) => setFormData({...formData, show_in_pos: e.target.checked})}
+                                                className="w-5 h-5 rounded border-white/20 bg-black/20 text-primary focus:ring-primary focus:ring-offset-gray-900"
+                                            />
+                                            <span className="text-textMain font-medium">Show in POS</span>
                                         </label>
                                     </div>
                                 </div>

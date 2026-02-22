@@ -1,0 +1,39 @@
+{% extends "reports/base_report.html" %}
+{% load arabic_filters %}
+
+{% block report_dates %}
+<p>
+    <strong>{% if lang == 'ar' %}{{ 'الفترة:'|reshape }}{% else %}Period:{% endif %}</strong>
+    {{ start_date }} - {{ end_date }}
+</p>
+{% endblock %}
+
+{% block summary_section %}
+<p>
+    {% if lang == 'ar' %}{{ 'إجمالي العملاء النشطين:'|reshape }}{% else %}Active Customers:{% endif %}
+    {{ summary.active_customers }}
+</p>
+{% endblock %}
+
+{% block main_table %}
+<table>
+    <thead>
+        <tr>
+            <th>{% if lang == 'ar' %}{{ 'الاسم'|reshape }}{% else %}Name{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الهاتف'|reshape }}{% else %}Phone{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'إجمالي الطلبات'|reshape }}{% else %}Total Orders{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'إجمالي الإنفاق'|reshape }}{% else %}Total Spent{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in customers %}
+        <tr>
+            <td>{{ row.Name|reshape }}</td>
+            <td dir="ltr">{{ row.Phone }}</td>
+            <td>{{ row.Total\ Orders }}</td>
+            <td>{{ row.Total\ Spent|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

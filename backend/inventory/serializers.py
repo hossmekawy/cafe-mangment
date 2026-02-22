@@ -139,6 +139,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_target_name(self, obj):
+        if obj.modifier:
+            return f"Modifier: {obj.modifier.name}"
         if obj.variation:
             return f"{obj.product.name if obj.product else ''} - {obj.variation.size_name}"
         return obj.product.name if obj.product else 'Unknown'

@@ -15,9 +15,32 @@ class ModifierGroupSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class TableSerializer(serializers.ModelSerializer):
+    active_order = serializers.SerializerMethodField()
+
     class Meta:
         model = Table
         fields = '__all__'
+
+    def get_active_order(self, obj):
+        from .models import Order
+        # Get the pending (active) order for this table
+        order = Order.objects.filter(table=obj, status='pending').prefetch_related('items__product').first()
+        if order:
+            return {
+                'id': str(order.id),
+                'order_number': order.order_number,
+                'total_amount': order.total_amount,
+                'created_at': order.created_at,
+                'customer': order.customer.first_name if order.customer else None,
+                'items': [
+                    {
+                        'product_name': item.product.name,
+                        'quantity': item.quantity,
+                        'total_price': item.total_price
+                    } for item in order.items.all()
+                ]
+            }
+        return None
 
 class POSProductVariationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,6 +70,7 @@ class POSProductSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name    = serializers.CharField(source='product.name',    read_only=True)
     product_name_ar = serializers.CharField(source='product.name_ar', read_only=True)
+    variation_name  = serializers.CharField(source='variation.size_name', read_only=True)
     modifiers_details = ModifierSerializer(source='modifiers', many=True, read_only=True)
     
     class Meta:
@@ -91,12 +115,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         for item_data in items_data:
             product_id = item_data.get('product')
+            variation_id = item_data.get('variation')
             quantity = item_data.get('quantity', 1)
             modifiers_ids = item_data.get('modifiers', [])
             special_instructions = item_data.get('special_instructions', '')
             
             product = Product.objects.get(id=product_id)
+            variation_obj = None
             unit_price = product.price
+            
+            if variation_id:
+                try:
+                    variation_obj = ProductVariation.objects.get(id=variation_id)
+                    unit_price = variation_obj.price
+                except ProductVariation.DoesNotExist:
+                    pass
             
             # Calculate modifier price
             modifiers = Modifier.objects.filter(id__in=modifiers_ids)
@@ -107,6 +140,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             order_item = OrderItem.objects.create(
                 order=order,
                 product=product,
+                variation=variation_obj,
                 quantity=quantity,
                 unit_price=unit_price,
                 total_price=total_price,
@@ -132,12 +166,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             instance.items.all().delete()
             for item_data in items_data:
                 product_id = item_data.get('product')
+                variation_id = item_data.get('variation')
                 quantity = item_data.get('quantity', 1)
                 modifiers_ids = item_data.get('modifiers', [])
                 special_instructions = item_data.get('special_instructions', '')
 
                 product = Product.objects.get(id=product_id)
+                variation_obj = None
                 unit_price = product.price
+                
+                if variation_id:
+                    try:
+                        variation_obj = ProductVariation.objects.get(id=variation_id)
+                        unit_price = variation_obj.price
+                    except ProductVariation.DoesNotExist:
+                        pass
 
                 modifiers = Modifier.objects.filter(id__in=modifiers_ids)
                 modifiers_price = sum(float(mod.extra_price) for mod in modifiers)
@@ -146,6 +189,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 order_item = OrderItem.objects.create(
                     order=instance,
                     product=product,
+                    variation=variation_obj,
                     quantity=quantity,
                     unit_price=unit_price,
                     total_price=total_price,

@@ -158,6 +158,7 @@ class MenuCategory(models.Model):
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='categories/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    show_in_pos = models.BooleanField(default=True, help_text="Show this category and its products in the POS interface")
     
     # Optional sorting
     order = models.IntegerField(default=0)
@@ -249,19 +250,18 @@ class ComboItem(models.Model):
 
 class Recipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # A recipe can belong to a base product OR a specific variation (size/type)
+    # A recipe can belong to a base product OR a specific variation (size/type) OR a generic Modifier
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipes', null=True, blank=True)
     variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
+    modifier = models.ForeignKey('pos.Modifier', on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
     
     yield_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
     preparation_time = models.IntegerField(help_text="In minutes", default=5)
     notes = models.TextField(blank=True, null=True)
-    
-    class Meta:
-        # A specific variation can only have one recipe. A product without variations can have one base recipe.
-        unique_together = [['product', 'variation']]
 
     def __str__(self):
+        if self.modifier:
+             return f"Recipe for Modifier: {self.modifier.name}"
         if self.variation:
             return f"Recipe for {self.variation.product.name} - {self.variation.size_name}"
         return f"Recipe for {self.product.name if self.product else 'Unknown'}"

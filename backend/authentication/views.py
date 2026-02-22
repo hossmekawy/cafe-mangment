@@ -174,12 +174,19 @@ class AdminUserSessionView(generics.ListAPIView):
         user_id = self.kwargs.get('pk')
         return UserSession.objects.filter(user_id=user_id).order_by('-last_used_at')
 
-class BranchListView(generics.ListAPIView):
-    queryset = Branch.objects.filter(is_active=True).order_by('name')
+class BranchListView(generics.ListCreateAPIView):
+    queryset = Branch.objects.all().order_by('name')
     serializer_class = BranchSerializer
-    permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAdminOrManager()]
+        return [IsAuthenticated()]
 
+class BranchDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Branch.objects.all()
+    serializer_class = BranchSerializer
+    permission_classes = (IsAdminOrManager,)
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = (IsAuthenticated,)
@@ -355,6 +362,40 @@ class PINLoginView(APIView):
             return Response({"success": False, "error": "INVALID_CREDENTIALS", "detail": "Invalid username or PIN."}, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({"success": False, "error": "VALIDATION_ERROR", "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class VerifyManagerPINView(APIView):
+    """
+    Verifies if the provided PIN belongs to a user with manager or superuser privileges.
+    Used for authorizing sensitive POS actions like manual discounts.
+    """
+    permission_classes = (AllowAny,) # We want anyone logged in (or using POS) to be able to prompt a manager
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        pin = request.data.get('pin')
+        if not pin:
+            return Response({"success": False, "error": "MISSING_PIN", "detail": "PIN is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find all potential managers (is_superuser or role='manager') who have a PIN set
+        # Django's check_password is too slow to run on ALL users, so we must filter first.
+        managers = User.objects.filter(pin__isnull=False).filter(is_superuser=True) | User.objects.filter(pin__isnull=False, role='manager')
+        
+        for manager in managers.distinct():
+            if check_password(pin, manager.pin):
+                log_audit(manager, 'MANAGER_PIN_VERIFIED', request)
+                return Response({
+                    "success": True, 
+                    "message": "Manager PIN verified.",
+                    "data": {
+                        "manager_name": manager.name or manager.username,
+                        "manager_id": str(manager.id)
+                    }
+                })
+        
+        # If we exhausted the loop without a match
+        AuthAuditLog.objects.create(user=None, action='FAILED_MANAGER_PIN_ATTEMPT', ip_address=get_client_ip(request), device_info=request.META.get('HTTP_USER_AGENT', '')[:255])
+        return Response({"success": False, "error": "INVALID_MANAGER_PIN", "detail": "Invalid Manager PIN."}, status=status.HTTP_403_FORBIDDEN)
+
 
 class SessionListView(generics.ListAPIView):
     serializer_class = UserSessionSerializer

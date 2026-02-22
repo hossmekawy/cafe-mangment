@@ -15,6 +15,7 @@ import {
     FiShoppingBag, FiDollarSign, FiTrendingUp, FiAlertTriangle
 } from 'react-icons/fi';
 import { printReceipt } from '../pos/ReceiptPrinter';
+import { printKitchenTicket } from '../pos/KitchenPrinter';
 
 // ---------- Helper Components ----------
 
@@ -212,6 +213,11 @@ const OrdersPage = () => {
         });
     };
 
+    // Print Kitchen ticket for any order
+    const handlePrintKitchen = (order) => {
+        printKitchenTicket({ order, cart: null, isUpdate: false });
+    };
+
     // ---------- Chart Data Preparation ----------
     const dailyChartData = (summary?.daily || []).map(d => ({
         day: format(new Date(d.day), 'dd MMM'),
@@ -258,7 +264,7 @@ const OrdersPage = () => {
                     {/* Revenue Area Chart */}
                     <div className="xl:col-span-2 bg-surface border border-slate-200 dark:border-white/10 rounded-2xl p-5">
                         <h3 className="text-textMain font-bold mb-4">Revenue (Last 30 Days)</h3>
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={200} minHeight={200} minWidth={100}>
                             <AreaChart data={dailyChartData}>
                                 <defs>
                                     <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
@@ -278,7 +284,7 @@ const OrdersPage = () => {
                     {/* Orders by Type Bar Chart */}
                     <div className="bg-surface border border-slate-200 dark:border-white/10 rounded-2xl p-5">
                         <h3 className="text-textMain font-bold mb-4">Order Mix</h3>
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={200} minHeight={200} minWidth={100}>
                             <BarChart data={typeChartData} barSize={28}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                 <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -429,11 +435,20 @@ const OrdersPage = () => {
                                                     <FiEye className="w-4 h-4" />
                                                 </button>
 
-                                                {/* Print — all roles */}
+                                                {/* Print Receipt — all roles */}
                                                 <button
                                                     onClick={() => handlePrint(order)}
                                                     className="p-1.5 rounded-lg text-textMuted hover:text-blue-400 hover:bg-blue-400/10 transition-colors"
                                                     title="Reprint Receipt"
+                                                >
+                                                    <FiPrinter className="w-4 h-4" />
+                                                </button>
+
+                                                {/* Print Kitchen — all roles */}
+                                                <button
+                                                    onClick={() => handlePrintKitchen(order)}
+                                                    className="p-1.5 rounded-lg text-textMuted hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
+                                                    title="Reprint Kitchen Ticket"
                                                 >
                                                     <FiPrinter className="w-4 h-4" />
                                                 </button>
@@ -492,7 +507,14 @@ const OrdersPage = () => {
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg text-xs font-bold transition-colors"
                                     title="Reprint Receipt"
                                 >
-                                    <FiPrinter className="w-3.5 h-3.5" /> Print
+                                    <FiPrinter className="w-3.5 h-3.5" /> Receipt
+                                </button>
+                                <button
+                                    onClick={() => handlePrintKitchen(selectedOrder)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 rounded-lg text-xs font-bold transition-colors"
+                                    title="Reprint Kitchen Ticket"
+                                >
+                                    <FiPrinter className="w-3.5 h-3.5" /> Kitchen
                                 </button>
                                 <button onClick={() => setShowDetailModal(false)} className="text-textMuted hover:text-textMain bg-slate-200 dark:bg-white/5 p-2 rounded-lg">
                                     <FiX />

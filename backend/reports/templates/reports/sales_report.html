@@ -1,0 +1,47 @@
+{% extends "reports/base_report.html" %}
+{% load arabic_filters %}
+
+{% block report_dates %}
+<p>
+    <strong>{% if lang == 'ar' %}{{ 'الفترة:'|reshape }}{% else %}Period:{% endif %}</strong>
+    {{ start_date }} - {{ end_date }}
+</p>
+{% endblock %}
+
+{% block summary_section %}
+<p>
+    {% if lang == 'ar' %}{{ 'إجمالي الطلبات:'|reshape }}{% else %}Total Orders:{% endif %}
+    {{ summary.total_orders }}
+</p>
+<p>
+    {% if lang == 'ar' %}{{ 'إجمالي الإيرادات:'|reshape }}{% else %}Total Revenue:{% endif %}
+    {{ summary.total_revenue|floatformat:2 }}
+</p>
+{% endblock %}
+
+{% block main_table %}
+<table>
+    <thead>
+        <tr>
+            <th>{% if lang == 'ar' %}{{ 'رقم الطلب'|reshape }}{% else %}Order ID{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'التاريخ'|reshape }}{% else %}Date{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'العميل'|reshape }}{% else %}Customer{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الموظف'|reshape }}{% else %}Employee{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'النوع'|reshape }}{% else %}Type{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الإجمالي'|reshape }}{% else %}Total{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in orders %}
+        <tr>
+            <td>{{ row.Order\ ID }}</td>
+            <td>{{ row.Date }}</td>
+            <td>{{ row.Customer|reshape }}</td>
+            <td>{{ row.Employee|reshape }}</td>
+            <td>{{ row.Type|reshape }}</td>
+            <td>{{ row.Total|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -450,10 +450,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     variation = ProductVariation.objects.get(id=target_id)
                     variation_id = target_id
                     product_id = variation.product_id
-
+                from pos.models import Modifier
+                if Modifier.objects.filter(id=target_id).exists():
+                    modifier_id = target_id
             recipe = Recipe.objects.create(
                 product_id=product_id,
                 variation_id=variation_id,
+                modifier_id=modifier_id if 'modifier_id' in locals() else None,
                 yield_quantity=data.get('yield_quantity', 1.0),
                 preparation_time=data.get('preparation_time', 5),
                 notes=data.get('notes', '')
@@ -477,10 +480,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 if Product.objects.filter(id=target_id).exists():
                     recipe.product_id = target_id
                     recipe.variation_id = None
+                    recipe.modifier_id = None
                 elif ProductVariation.objects.filter(id=target_id).exists():
                     variation = ProductVariation.objects.get(id=target_id)
                     recipe.variation_id = target_id
                     recipe.product_id = variation.product_id
+                    recipe.modifier_id = None
+                else:
+                    from pos.models import Modifier
+                    if Modifier.objects.filter(id=target_id).exists():
+                        recipe.modifier_id = target_id
+                        recipe.product_id = None
+                        recipe.variation_id = None
                     
             recipe.yield_quantity = data.get('yield_quantity', recipe.yield_quantity)
             recipe.preparation_time = data.get('preparation_time', recipe.preparation_time)

@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { useEffect } from 'react';
 
-const ProtectedRoute = ({ allowedRoles }) => {
+const ProtectedRoute = ({ allowedRoles, excludedRoles }) => {
   const { isAuthenticated, user, isLoading, initAuth } = useAuthStore();
 
   useEffect(() => {
@@ -22,8 +22,20 @@ const ProtectedRoute = ({ allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // If specific roles are restricted from this route
+  if (excludedRoles && excludedRoles.includes(user.role)) {
+      // If a cashier is restricted, bounce them to the POS directly
+      if (user.role === 'cashier') {
+          return <Navigate to="/pos" replace />;
+      }
+      return <Navigate to="/" replace />;
+  }
+
   // If roles are specified and user role is not in the list, redirect to home/unauthorized
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (user.role === 'cashier') {
+        return <Navigate to="/pos" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 

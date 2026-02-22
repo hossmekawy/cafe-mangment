@@ -61,7 +61,7 @@ def complete_order(order_id, user):
     try:
         with transaction.atomic():
             # 1. Deduct Stock
-            from inventory.services import log_stock_movement
+            from inventory.services import log_stock_movement, deduct_recipe_ingredients
             for item in order.items.all():
                 # Check for direct retail item first (e.g. Water, Cake)
                 if item.product.linked_raw_material:
@@ -73,16 +73,31 @@ def complete_order(order_id, user):
                         note=f"Consumed for {item.quantity}x {item.product.name} (Direct Retail) (Order: {order.order_number})"
                     )
                 # Fallback to Recipe deduction for prepared items
-                elif hasattr(item.product, 'recipe') and item.product.recipe:
+                else:
                     success, message = deduct_stock(
                         product=item.product,
                         quantity=item.quantity,
                         user=user,
-                        reference_order=order 
+                        reference_order=order,
+                        variation=item.variation
                     )
                     
                     if not success:
                         raise Exception(f"Failed to deduct stock for {item.product.name}: {message}")
+                        
+                # 3. Deduct stock for Modifiers explicitly attached to the order item
+                for modifier in item.modifiers.all():
+                    if hasattr(modifier, 'recipe') and modifier.recipe.exists():
+                        mod_recipe = modifier.recipe.first()
+                        succ, msg = deduct_recipe_ingredients(
+                            recipe=mod_recipe,
+                            quantity=item.quantity, # E.g., 2 Lattes = 2x Extra Shots
+                            user=user,
+                            reference_order=order,
+                            note_prefix=f"[Modifier: {modifier.name}]"
+                        )
+                        if not succ:
+                            raise Exception(f"Failed to deduct stock for Modifier {modifier.name}: {msg}")
             
             # 2. Process CRM Loyalty & Tab
             process_customer_loyalty_and_tab(order)

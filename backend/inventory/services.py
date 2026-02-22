@@ -112,23 +112,19 @@ def reconcile_physical_count(physical_count):
         physical_count.completed_at = timezone.now()
         physical_count.save()
 
-def deduct_stock(product, quantity, user, reference_order=None):
+def deduct_recipe_ingredients(recipe, quantity, user, reference_order=None, note_prefix=""):
     """
-    Deducts raw materials based on a product's recipe.
-    Returns (True, "") on success, or (False, "error message") on failure.
+    Executes the stock deduction logic for a specific Recipe object.
+    Helper method to allow abstract deductions for Base Products, Variations, and Modifiers.
     """
-    if getattr(product, 'recipe', None) is None:
+    if not recipe:
         return True, "No recipe found; nothing to deduct."
         
-    recipe = product.recipe
-    
-    # Check if there is enough stock before deducting
     for ingredient in recipe.ingredients.all():
         raw_material = ingredient.raw_material
         
         # Calculate how much of the raw material we need in the raw material's base unit
         # Formula: Required Base Qty = (Ingredient Qty * Recipe Yield Qty * Order Qty) * Conversion Multiplier
-        
         needed_qty = ingredient.quantity * Decimal(quantity) / recipe.yield_quantity
         
         if ingredient.unit != raw_material.unit:
@@ -138,28 +134,57 @@ def deduct_stock(product, quantity, user, reference_order=None):
                     from_unit=raw_material.unit,
                     to_unit=ingredient.unit
                 )
-                # Need to convert the required recipe unit back to the raw material's base unit
                 needed_qty = needed_qty / conversion.multiplier
             except UnitConversion.DoesNotExist:
                 return False, f"Missing Unit Conversion: Cannot convert {raw_material.unit} to {ingredient.unit}"
                 
-        # Optional: We could strictly prevent saving if stock goes negative, but cafeterias
-        # often want to allow negative stock (overselling) rather than blocking orders.
-        # We'll just deduct it to negative and rely on check_low_stock to warn the manager.
-        
-        movement_note = f"Consumed for {quantity}x {product.name}"
+        movement_note = f"Consumed {quantity}x {note_prefix}"
         if reference_order:
             movement_note += f" (Order: {reference_order.order_number})"
             
         log_stock_movement(
             raw_material=raw_material,
             movement_type='consumption',
-            quantity=-needed_qty, # Negative because it's consumption
+            quantity=-needed_qty,
             performed_by=user,
             note=movement_note
         )
         
     return True, ""
+
+
+def deduct_stock(product, quantity, user, reference_order=None, variation=None):
+    """
+    Deducts raw materials based on a product's base or variation recipe.
+    Returns (True, "") on success, or (False, "error message") on failure.
+    """
+    # 1. Determine which base recipe to use
+    recipe = None
+    if variation and hasattr(variation, 'recipe') and variation.recipe.exists():
+        recipe = variation.recipe.first()
+    elif hasattr(product, 'recipes') and product.recipes.exists():
+        recipe = product.recipes.first()
+    elif hasattr(product, 'recipe') and product.recipe:
+        recipe = product.recipe
+
+    if not recipe:
+        return True, "No recipe found; nothing to deduct."
+    
+    # 2. Deduct the base recipe
+    note = f"[{product.name}"
+    if variation:
+        note += f" - {variation.size_name}"
+    note += "]"
+    
+    return deduct_recipe_ingredients(
+        recipe=recipe, 
+        quantity=quantity, 
+        user=user, 
+        reference_order=reference_order,
+        note_prefix=note
+    )
+        
+
 
 def calculate_inventory_value():
     """Returns the total estimated value of current stock."""

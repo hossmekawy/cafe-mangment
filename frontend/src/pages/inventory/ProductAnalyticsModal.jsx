@@ -136,7 +136,7 @@ export default function ProductAnalyticsModal({ product, onClose }) {
                                     <h3 className="text-white font-bold mb-6 flex items-center"><FiCalendar className="mr-2 text-textMuted"/> Sales Trend</h3>
                                     <div className="h-64">
                                         {data.sales_trend?.length > 0 ? (
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={100}>
                                                 <LineChart data={data.sales_trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                                     <XAxis 
@@ -184,7 +184,7 @@ export default function ProductAnalyticsModal({ product, onClose }) {
                                     <h3 className="text-white font-bold mb-6">Channel Breakdown</h3>
                                     <div className="h-64">
                                         {data.type_breakdown?.length > 0 ? (
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={100}>
                                                 <BarChart data={data.type_breakdown} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                                                     <XAxis type="number" hide />

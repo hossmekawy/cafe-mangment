@@ -1,0 +1,49 @@
+{% extends "reports/base_report.html" %}
+{% load arabic_filters %}
+
+{% block summary_section %}
+<p>
+    {% if lang == 'ar' %}{{ 'إجمالي الأصناف:'|reshape }}{% else %}Total Items:{% endif %}
+    {{ summary.total_items }}
+</p>
+<p>
+    {% if lang == 'ar' %}{{ 'قيمة المخزون الإجمالية:'|reshape }}{% else %}Total Inventory Value:{% endif %}
+    {{ summary.total_value|floatformat:2 }}
+</p>
+{% endblock %}
+
+{% block main_table %}
+<table>
+    <thead>
+        <tr>
+            <th>{% if lang == 'ar' %}{{ 'المادة'|reshape }}{% else %}Material{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'المخزون'|reshape }}{% else %}Stock{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الوحدة'|reshape }}{% else %}Unit{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الحد الأدنى'|reshape }}{% else %}Min Stock{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'سعر الوحدة'|reshape }}{% else %}Cost/Unit{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'القيمة الإجمالية'|reshape }}{% else %}Total Value{% endif %}</th>
+            <th>{% if lang == 'ar' %}{{ 'الحالة'|reshape }}{% else %}Status{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in inventory %}
+        <tr>
+            <td>{{ row.Material|reshape }}</td>
+            <td>{{ row.Stock|floatformat:2 }}</td>
+            <td>{{ row.Unit|reshape }}</td>
+            <td>{{ row.Min\ Stock|floatformat:2 }}</td>
+            <td>{{ row.Cost\/Unit|floatformat:2 }}</td>
+            <td>{{ row.Total\ Value|floatformat:2 }}</td>
+            <td>
+                {% if row.Status == 'Low Stock' %}
+                <strong style="color:red">{% if lang == 'ar' %}{{ 'مخزون منخفض'|reshape }}{% else %}Low Stock{% endif
+                    %}</strong>
+                {% else %}
+                <strong style="color:green">{% if lang == 'ar' %}{{ 'مكتمل'|reshape }}{% else %}OK{% endif %}</strong>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

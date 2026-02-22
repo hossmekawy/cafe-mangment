@@ -9,6 +9,7 @@ import { FiPlus, FiTrash2, FiEye, FiSettings, FiSearch, FiLayers } from 'react-i
 import { MdDragIndicator } from 'react-icons/md';
 import DataTable from '../../components/DataTable';
 import { inventoryApi } from '../../api/inventoryApi';
+import { posApi } from '../../api/posApi';
 import useSettingsStore from '../../store/settingsStore';
 import ConfirmModal from '../../components/ConfirmModal';
 
@@ -62,6 +63,7 @@ const Recipes = () => {
     const [recipes, setRecipes] = useState([]);
     const [products, setProducts] = useState([]);
     const [variations, setVariations] = useState([]);
+    const [modifiers, setModifiers] = useState([]);
     const [materials, setMaterials] = useState([]);
     const [units, setUnits] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -91,16 +93,18 @@ const Recipes = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [recipesRes, prodRes, varRes, matRes, unitsRes] = await Promise.all([
+            const [recipesRes, prodRes, varRes, modRes, matRes, unitsRes] = await Promise.all([
                 inventoryApi.getRecipes(),
                 inventoryApi.getProducts(),
                 inventoryApi.getVariations(),
+                posApi.getModifiers(),
                 inventoryApi.getMaterials(),
                 inventoryApi.getUnits()
             ]);
             setRecipes(recipesRes.data);
             setProducts(prodRes.data);
             setVariations(varRes.data);
+            setModifiers(modRes.data);
             setMaterials(matRes.data);
             setUnits(unitsRes.data);
         } catch (error) {
@@ -153,7 +157,7 @@ const Recipes = () => {
         if (recipe) {
             // Need to map the existing ingredients into the form format
             reset({
-                product: recipe.variation ? recipe.variation : recipe.product,
+                product: recipe.modifier ? recipe.modifier : (recipe.variation ? recipe.variation : recipe.product),
                 yield_quantity: recipe.yield_quantity,
                 preparation_time: recipe.preparation_time,
                 notes: recipe.notes || '',
@@ -412,15 +416,38 @@ const Recipes = () => {
                                                             };
                                                         });
                                                         
-                                                    const combinedOptions = [...productOptions, ...variationOptions];
+                                                    // Map Modifiers
+                                                    const modifierOptions = modifiers
+                                                        .filter(m => m.is_active)
+                                                        .map(m => ({
+                                                            value: m.id,
+                                                            label: `Modifier: ${m.name}`,
+                                                            type: 'modifier'
+                                                        }));
+                                                        
+                                                    const combinedOptions = [
+                                                        { label: 'Base Products', options: productOptions },
+                                                        { label: 'Variations & Sizes', options: variationOptions },
+                                                        { label: 'Add-ons & Modifiers', options: modifierOptions }
+                                                    ];
+                                                    
+                                                    // Find selected value from grouped options
+                                                    let selectedOption = '';
+                                                    for (const group of combinedOptions) {
+                                                        const match = group.options.find(opt => opt.value === value);
+                                                        if (match) {
+                                                            selectedOption = match;
+                                                            break;
+                                                        }
+                                                    }
 
                                                     return (
                                                         <Select
                                                             ref={ref}
                                                             options={combinedOptions}
                                                             styles={selectStyles}
-                                                            placeholder="Select Product to link..."
-                                                            value={combinedOptions.find(c => c.value === value) || ''}
+                                                            placeholder="Select target..."
+                                                            value={selectedOption}
                                                             onChange={val => onChange(val ? val.value : '')}
                                                             isClearable
                                                         />

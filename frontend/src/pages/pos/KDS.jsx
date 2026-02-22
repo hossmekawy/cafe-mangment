@@ -110,7 +110,7 @@ const KDS = () => {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-[#0B1121] overflow-hidden">
+        <div className="h-full flex flex-col bg-[#0B1121] overflow-hidden rounded-2xl">
             
             {/* Header / Navbar */}
             <div className="h-16 bg-[#0f172a] border-b border-white/10 flex items-center justify-between px-6 shrink-0 z-10 shadow-xl">

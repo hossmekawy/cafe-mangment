@@ -8,6 +8,7 @@ export const authApi = {
     getProfile: () => axiosInstance.get('/auth/me/'),
     updateProfile: (data) => axiosInstance.patch('/auth/me/', data),
     updateTheme: (data) => axiosInstance.post('/auth/me/theme/', data),
+    verifyManagerPIN: (data) => axiosInstance.post('/auth/pin/verify-manager/', data),
     
     // Admin User Management endpoints
     getUsers: () => axiosInstance.get('/auth/admin/users/'),
@@ -17,6 +18,9 @@ export const authApi = {
     getUserLogs: (id) => axiosInstance.get(`/auth/admin/users/${id}/logs/`),
     getUserSessions: (id) => axiosInstance.get(`/auth/admin/users/${id}/sessions/`),
     
-    // Branches endpoint for dropdowns
+    // Branches endpoint for dropdowns and management
     getBranches: () => axiosInstance.get('/auth/branches/'),
+    createBranch: (data) => axiosInstance.post('/auth/branches/', data),
+    updateBranch: (id, data) => axiosInstance.patch(`/auth/branches/${id}/`, data),
+    deleteBranch: (id) => axiosInstance.delete(`/auth/branches/${id}/`),
 };

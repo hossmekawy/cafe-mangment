@@ -110,16 +110,19 @@
 }
 
 /* ============================================================
-   PRINT MEDIA — hide all app chrome, show nothing by default.
-   The actual receipt is printed from printReceipt() which
-   opens its own isolated popup window.
+   PRINT MEDIA — hide the React app, show only the print area.
+   CombinedPrinter.jsx appends #pos-print-area to <body> and
+   calls window.print() — no popup windows needed.
    ============================================================ */
 @media print {
 
-  /* Hide absolutely everything on the main app page */
-  body>* {
+  /* Hide the React app */
+  #root {
     display: none !important;
   }
 
-  /* If something must be visible, add it explicitly with print:block */
+  /* Show the injected print area */
+  #pos-print-area {
+    display: block !important;
+  }
 }

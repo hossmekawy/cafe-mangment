@@ -25,6 +25,7 @@ import Invoices from './pages/purchasing/Invoices';
 import POSDashboard from './pages/pos/POSDashboard';
 import FloorPlan from './pages/pos/FloorPlan';
 import KDS from './pages/pos/KDS';
+import ShiftDashboard from './pages/pos/ShiftDashboard';
 import CustomersList from './pages/customers/CustomersList';
 import CustomerProfile from './pages/customers/CustomerProfile';
 import PromotionsDashboard from './pages/promotions/PromotionsDashboard';
@@ -91,6 +92,7 @@ function App() {
             <Route path="/pos" element={<POSDashboard />} />
             <Route path="/pos/floor-plan" element={<FloorPlan />} />
             <Route path="/pos/kds" element={<KDS />} />
+            <Route path="/pos/my-shift" element={<ShiftDashboard />} />
             
             {/* Protected Routes (Manager & Super Admin only) */}
             <Route element={<ProtectedRoute allowedRoles={['manager', 'super_admin']} />}>

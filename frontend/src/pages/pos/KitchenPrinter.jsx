@@ -79,7 +79,7 @@ export const printKitchenTicket = ({ order, cart, isUpdate = false }) => {
     const metaSection = `
     <div class="meta-block">
         <h1 class="ticket-header">${headerText}</h1>
-        <div class="meta-row font-bold"><span>${lbl.orderNo}</span><strong>${order?.order_number || order?.id?.split('-')[0] || '—'}</strong></div>
+        <div class="meta-row font-bold"><span>${lbl.orderNo}</span><strong>${order?.order_number || '—'}</strong></div>
         <div class="meta-row"><span>${lbl.date}</span><span>${dateStr}</span></div>
         <div class="meta-row font-bold"><span>${lbl.type}</span><span>${orderTypeLabel}</span></div>
         ${order?.table ? `<div class="meta-row table-hilight"><span>${lbl.table}</span><strong>${order.table_number || order.table}</strong></div>` : ''}

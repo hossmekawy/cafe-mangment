@@ -4,6 +4,7 @@ export const financeApi = {
     // Shifts
     getShifts: (params) => axiosInstance.get('/finance/shifts/', { params }),
     getCurrentShift: () => axiosInstance.get('/finance/shifts/current/'),
+    getShiftSummary: (id) => axiosInstance.get(`/finance/shifts/${id}/summary/`),
     openShift: (data) => axiosInstance.post('/finance/shifts/open_shift/', data),
     closeShift: (id, data) => axiosInstance.post(`/finance/shifts/${id}/close_shift/`, data),
     approveShift: (id) => axiosInstance.post(`/finance/shifts/${id}/approve/`),

@@ -144,6 +144,42 @@ class CashShiftViewSet(viewsets.ModelViewSet):
         shift.save()
         return Response(CashShiftSerializer(shift).data)
 
+    @action(detail=True, methods=['get'])
+    def summary(self, request, pk=None):
+        """Live summary of a shift: revenue, order count, payment breakdown."""
+        from pos.models import Order, Payment
+        from django.db.models import Sum, Count
+
+        shift = self.get_object()
+
+        orders = Order.objects.filter(shift=shift, status='completed')
+        order_count = orders.count()
+        total_revenue = orders.aggregate(t=Sum('total_amount'))['t'] or 0
+        total_discounts = orders.aggregate(t=Sum('discount_amount'))['t'] or 0
+
+        payments = Payment.objects.filter(order__shift=shift, order__status='completed')
+        breakdown = {}
+        for row in payments.values('payment_method').annotate(total=Sum('amount')):
+            breakdown[row['payment_method']] = float(row['total'])
+
+        order_list = list(orders.values(
+            'id', 'order_number', 'order_type', 'total_amount', 'created_at'
+        ).order_by('-created_at')[:50])  # Last 50 orders in shift
+
+        return Response({
+            'shift_number': shift.shift_number,
+            'cashier_name': shift.cashier.name,
+            'opened_at': shift.opened_at,
+            'status': shift.status,
+            'opening_cash': float(shift.opening_cash),
+            'order_count': order_count,
+            'total_revenue': float(total_revenue),
+            'total_discounts': float(total_discounts),
+            'payment_breakdown': breakdown,
+            'order_list': order_list,
+        })
+
+
 
 class CashMovementViewSet(viewsets.ModelViewSet):
     queryset = CashMovement.objects.all()

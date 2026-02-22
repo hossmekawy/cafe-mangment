@@ -7,8 +7,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { customersApi } from '../../api/customersApi';
 import { authApi } from '../../api/authApi';
 import useSettingsStore from '../../store/settingsStore';
-import { printReceipt } from './ReceiptPrinter';
-import { printKitchenTicket } from './KitchenPrinter';
+import { printCombined } from './CombinedPrinter';
 
 const POSDashboard = () => {
     const { user } = useAuthStore();
@@ -406,18 +405,14 @@ const POSDashboard = () => {
         const toastId = toast.loading(isEditingDraft ? "Updating Draft Order..." : "Saving Order...");
         try {
             if (isEditingDraft) {
-                // PATCH the existing draft with the new items list
                 await posApi.updateOrder(activeOrderId, orderData);
                 toast.success("Draft Updated!", { id: toastId });
-                
-                // Get the updated full order to print
-                const res = await posApi.getOrder(activeOrderId);
-                printKitchenTicket({ order: res.data, cart: null, isUpdate: true });
-
+                const updRes = await posApi.getOrder(activeOrderId);
+                printCombined({ order: updRes.data, cart: null, kitchenOnly: true });
             } else {
-                const res = await posApi.createOrder(orderData);
+                const newRes = await posApi.createOrder(orderData);
                 toast.success("Order Saved & Sent to Kitchen!", { id: toastId });
-                printKitchenTicket({ order: res.data, cart: null, isUpdate: false });
+                printCombined({ order: newRes.data, cart: null, kitchenOnly: true });
             }
             // Reset POS state
             setCart([]);
@@ -492,14 +487,11 @@ const POSDashboard = () => {
                 const res = await posApi.createOrder(orderData);
                 orderIdToPay = res.data.id;
                 finalizedOrderData = res.data;
-                
-                // This is a direct payment of a new cart, so we must print the kitchen ticket too!
-                printKitchenTicket({ order: finalizedOrderData, cart: null, isUpdate: false });
 
             } else {
-                // If it was a draft, we need it to print. Let's fetch it if not currently held purely in frontend memory.
-                const res = await posApi.getOrders();
-                finalizedOrderData = res.data.find(o => o.id === orderIdToPay);
+                // Fetch the full draft order with nested items so the kitchen ticket is complete
+                const res = await posApi.getOrder(orderIdToPay);
+                finalizedOrderData = res.data;
             }
 
             await posApi.processPayment(orderIdToPay, {
@@ -508,19 +500,19 @@ const POSDashboard = () => {
             });
             
             toast.success("Order Complete!", { id: toastId });
-            
-            // Trigger Print Flow — call directly before state reset so all values are captured
-            if (shouldPrint && finalizedOrderData) {
-                printReceipt({
-                    order: finalizedOrderData,
-                    cart: [...cart],
+
+            // Always print kitchen ticket + receipt together in one print job
+            if (finalizedOrderData) {
+                printCombined({
+                    order:         finalizedOrderData,
+                    cart:          [...cart],
                     subtotal,
-                    taxInfo: estimatedTax,
+                    taxInfo:       estimatedTax,
                     serviceCharge,
-                    discountInfo: combinedDiscount,
+                    discountInfo:  combinedDiscount,
                     total,
-                    payments: [...payments],
-                    remainingBalance,
+                    payments:      [...payments],
+                    kitchenOnly:   !shouldPrint, // Save Only = kitchen ticket only; Save & Print = both
                 });
             }
 
@@ -666,7 +658,7 @@ const POSDashboard = () => {
     }
 
     return (
-        <div className="h-full flex bg-background overflow-hidden" style={{ zoom: "0.8" }}>
+        <div className="h-full flex bg-background overflow-hidden">
             {/* LIFT SIDE: PRODUCT GRID */}
             <div className="flex-1 flex flex-col h-full bg-surface rounded-tr-3xl">
                 <div className="p-6 pb-0 tracking-tight shrink-0">

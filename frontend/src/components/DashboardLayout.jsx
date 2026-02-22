@@ -6,7 +6,7 @@ import {
   FiHome, FiSettings, FiUserPlus, FiLogOut, 
   FiMenu, FiX, FiUser, FiCoffee, FiUsers, FiGift,
   FiBox, FiShoppingCart, FiChevronDown, FiChevronRight, FiMapPin,
-  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag, FiFileText, FiTrendingUp, FiBriefcase, FiCheckSquare, FiPieChart
+  FiClipboard, FiTruck, FiList, FiTrash2, FiBookOpen, FiInbox, FiDollarSign, FiRepeat, FiLayers, FiClock, FiFolder, FiSun, FiMoon, FiShoppingBag, FiFileText, FiTrendingUp, FiBriefcase, FiCheckSquare, FiPieChart, FiActivity
 } from 'react-icons/fi';
 
 const DashboardLayout = () => {
@@ -63,6 +63,7 @@ const DashboardLayout = () => {
     { name: 'Point of Sale (POS)', path: '/pos', icon: FiCoffee, show: true },
     { name: 'Floor Plan (Tables)', path: '/pos/floor-plan', icon: FiLayers, show: true },
     { name: 'Kitchen Display (KDS)', path: '/pos/kds', icon: FiClock, show: true },
+    { name: 'My Shift', path: '/pos/my-shift', icon: FiActivity, show: isCashier },
     { name: 'Orders History', path: '/orders', icon: FiShoppingBag, show: true },
     {
       name: 'Inventory Mgt', icon: FiBox, show: isAdminOrManager,

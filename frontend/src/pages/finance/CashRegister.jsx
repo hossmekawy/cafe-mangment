@@ -12,6 +12,7 @@ const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 1];
 export default function CashRegister() {
     const { user } = useAuthStore();
     const [currentShift, setCurrentShift] = useState(null);
+    const [shiftSummary, setShiftSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     
     // Forms
@@ -39,6 +40,7 @@ export default function CashRegister() {
             setCurrentShift(res.data);
             if (res.data) {
                 fetchMovements(res.data.id);
+                fetchSummary(res.data.id);
             }
         } catch (error) {
             if (error.response?.status !== 404) {
@@ -56,6 +58,15 @@ export default function CashRegister() {
         try {
             const res = await financeApi.getCashMovements({ shift: shiftId });
             setMovements(res.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const fetchSummary = async (shiftId) => {
+        try {
+            const res = await financeApi.getShiftSummary(shiftId);
+            setShiftSummary(res.data);
         } catch (error) {
             console.error(error);
         }
@@ -166,7 +177,8 @@ export default function CashRegister() {
                     </div>
                     <div className="glass-panel p-5 border-l-4 border-green-500">
                         <p className="text-textMuted text-sm font-medium">Shift Revenue</p>
-                        <p className="text-2xl font-bold text-white mt-1">Live from POS</p>
+                        <p className="text-2xl font-bold text-white mt-1">{formatMoney(shiftSummary?.total_revenue ?? 0)}</p>
+                        <p className="text-xs text-textMuted mt-1">{shiftSummary?.order_count ?? 0} orders</p>
                     </div>
                     <div className="glass-panel p-5 border-l-4 border-orange-500">
                         <p className="text-textMuted text-sm font-medium">Cash Drops</p>

@@ -5,7 +5,7 @@ import Select from 'react-select';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiEye, FiSettings, FiSearch, FiLayers } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEye, FiSettings, FiSearch, FiLayers, FiUploadCloud, FiDownload, FiX, FiCheck, FiArrowLeft } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
 import DataTable from '../../components/DataTable';
 import { inventoryApi } from '../../api/inventoryApi';
@@ -75,6 +75,7 @@ const Recipes = () => {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [recipeToDelete, setRecipeToDelete] = useState(null);
     const [viewRecipe, setViewRecipe] = useState(null);
+    const [importModalOpen, setImportModalOpen] = useState(false);
 
     const { settings } = useSettingsStore();
 
@@ -293,13 +294,22 @@ const Recipes = () => {
                      <h1 className="text-2xl font-bold text-white">Recipe Engineering</h1>
                      <p className="text-sm text-textMuted mt-1">Design formulas linking Raw Materials to Menu Items to auto-deduct stock upon sales.</p>
                 </div>
-                <button 
-                    onClick={() => openBuilder()}
-                    className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
-                >
-                    <FiLayers className="w-5 h-5" />
-                    <span>Launch Recipe Builder</span>
-                </button>
+                <div className="flex items-center space-x-3">
+                    <button 
+                        onClick={() => setImportModalOpen(true)}
+                        className="bg-[#1e293b] hover:bg-[#2dd4bf]/20 text-white border border-white/10 hover:border-[#2dd4bf]/50 px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+                    >
+                        <FiUploadCloud className="w-5 h-5 text-[#2dd4bf]" />
+                        <span>Bulk Import</span>
+                    </button>
+                    <button 
+                        onClick={() => openBuilder()}
+                        className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
+                    >
+                        <FiLayers className="w-5 h-5" />
+                        <span>Launch Recipe Builder</span>
+                    </button>
+                </div>
             </div>
 
             <DataTable 
@@ -375,7 +385,10 @@ const Recipes = () => {
                                                                     <MdDragIndicator className="text-textMuted" />
                                                                 </div>
                                                                 <div className="overflow-hidden">
-                                                                    <p className="text-sm font-semibold text-white truncate">{mat.name}</p>
+                                                                    <p className="text-sm font-semibold text-white truncate text-wrap leading-tight">
+                                                                        {mat.item_type === 'subrecipe' && <span className="text-[#2dd4bf] mr-1">[Prep]</span>}
+                                                                        {mat.name}
+                                                                    </p>
                                                                     <p className="text-xs text-textMuted mt-0.5 truncate">Base: {mat.unit_abbreviation} • {settings?.currency || '$'}{mat.cost_per_unit}</p>
                                                                 </div>
                                                             </div>
@@ -640,6 +653,228 @@ const Recipes = () => {
                 confirmText="Delete Recipe"
                 isDestructive={true}
             />
+            {/* Bulk Import Modal */}
+            <ImportRecipesModal 
+                isOpen={importModalOpen} 
+                onClose={() => setImportModalOpen(false)} 
+                onSuccess={() => { setImportModalOpen(false); fetchData(); }} 
+            />
+        </div>
+    );
+};
+
+// -------------------------------------------------------------
+// BULK IMPORT MODAL (Two-Step process)
+// -------------------------------------------------------------
+const ImportRecipesModal = ({ isOpen, onClose, onSuccess }) => {
+    const [step, setStep] = useState(1);
+    const [file, setFile] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [previewData, setPreviewData] = useState([]);
+
+    if (!isOpen) return null;
+
+    const resetModal = () => {
+        setStep(1);
+        setFile(null);
+        setPreviewData([]);
+        onClose();
+    };
+
+    const handleDownloadTemplate = async () => {
+        try {
+            const toastId = toast.loading("Downloading template...");
+            const response = await inventoryApi.exportRecipesTemplate();
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'recipes_template.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success("Template downloaded", { id: toastId });
+        } catch (error) {
+            toast.error("Failed to download template");
+        }
+    };
+
+    const handlePreview = async () => {
+        if (!file) return toast.error("Please select an Excel file first");
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        setIsProcessing(true);
+        const toastId = toast.loading("Parsing Excel file...");
+        
+        try {
+            const response = await inventoryApi.previewBulkRecipes(formData);
+            if (response.data.success && response.data.data.length > 0) {
+                toast.success("File parsed! Please review the data.", { id: toastId });
+                setPreviewData(response.data.data);
+                setStep(2);
+            } else {
+                toast.error("No valid data found in the file", { id: toastId });
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.detail || "Failed to parse the file.", { id: toastId });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleConfirmImport = async () => {
+        setIsProcessing(true);
+        const toastId = toast.loading("Importing recipes...");
+        try {
+            const response = await inventoryApi.confirmBulkRecipes(previewData);
+            if (response.data.success) {
+                toast.success(response.data.message, { id: toastId });
+                if (response.data.errors?.length > 0) {
+                    toast.error(`Some rows failed: ${response.data.errors.length} errors. Check console.`, { duration: 5000 });
+                    console.warn("Import Errors:", response.data.errors);
+                }
+                onSuccess();
+                resetModal();
+            } else {
+                toast.error(response.data.detail || "Import failed", { id: toastId });
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.detail || "Import failed during saving.", { id: toastId });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleCellChange = (rowIndex, field, value) => {
+        const newData = [...previewData];
+        newData[rowIndex][field] = value;
+        setPreviewData(newData);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in-up">
+            <div className={`bg-[#1e293b] rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${step === 2 ? 'w-full max-w-6xl' : 'w-full max-w-md'}`}>
+                <div className="p-5 border-b border-white/10 flex justify-between items-center bg-[#0f172a] shrink-0">
+                    <h3 className="text-xl font-black text-white flex items-center space-x-2">
+                        <FiUploadCloud className="text-[#2dd4bf]" /> 
+                        <span>{step === 1 ? 'Bulk Import Recipes' : 'Review & Edit Recipe Data'}</span>
+                    </h3>
+                    <button onClick={resetModal} className="text-textMuted hover:text-white bg-white/5 p-2 rounded-lg transition-colors">
+                        <FiX />
+                    </button>
+                </div>
+                
+                {step === 1 ? (
+                    <>
+                        <div className="p-6 space-y-6">
+                            <div className="bg-[#2dd4bf]/10 border border-[#2dd4bf]/20 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                                <p className="text-sm text-white font-medium mb-3">1. Download the Excel template</p>
+                                <button 
+                                    onClick={handleDownloadTemplate}
+                                    className="bg-[#2dd4bf]/20 hover:bg-[#2dd4bf]/30 text-[#2dd4bf] border border-[#2dd4bf]/30 px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 transition-colors"
+                                >
+                                    <FiDownload /> <span>Download Template.xlsx</span>
+                                </button>
+                                <p className="text-xs text-textMuted mt-3">Fill in your recipe details exactly as structured.</p>
+                            </div>
+
+                            <div className="border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                                <p className="text-sm text-white font-medium mb-3">2. Upload filled Excel file</p>
+                                <div className="w-full relative">
+                                    <input 
+                                        type="file" 
+                                        accept=".xlsx, .xls" 
+                                        onChange={(e) => setFile(e.target.files[0])}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div className={`w-full py-4 rounded-lg border-2 border-dashed transition-colors flex flex-col items-center justify-center ${file ? 'border-green-500/50 bg-green-500/10' : 'border-white/20 bg-white/5 hover:border-[#2dd4bf]/50'}`}>
+                                        <FiUploadCloud className={`w-6 h-6 mb-2 ${file ? 'text-green-400' : 'text-textMuted'}`} />
+                                        <span className={`text-sm font-bold ${file ? 'text-green-400' : 'text-textMuted'}`}>
+                                            {file ? file.name : 'Click to browse or drag file here'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5 border-t border-white/10 bg-[#0f172a]">
+                            <button 
+                                onClick={handlePreview}
+                                disabled={!file || isProcessing}
+                                className="w-full bg-[#2dd4bf] hover:bg-[#2dd4bf]/90 disabled:opacity-50 text-[#0f172a] font-black py-3 rounded-xl shadow-[0_0_15px_rgba(45,212,191,0.3)] transition-all flex justify-center items-center space-x-2"
+                            >
+                                {isProcessing ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#0f172a]"></div>
+                                ) : (
+                                    <>
+                                        <span>Preview Data</span> <FiArrowLeft className="rotate-180" />
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-textMuted">
+                                        <th className="pb-3 px-2 font-medium">Target Type</th>
+                                        <th className="pb-3 px-2 font-medium">Target ID</th>
+                                        <th className="pb-3 px-2 font-medium">Yield</th>
+                                        <th className="pb-3 px-2 font-medium">Ingredient ID</th>
+                                        <th className="pb-3 px-2 font-medium">Quantity</th>
+                                        <th className="pb-3 px-2 font-medium">Unit ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {previewData.map((row, idx) => (
+                                        <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                            <td className="p-2">
+                                                <input type="text" value={row.target_type} onChange={(e) => handleCellChange(idx, 'target_type', e.target.value)} className="input py-1 px-2 w-24 text-sm" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="text" value={row.target_id} onChange={(e) => handleCellChange(idx, 'target_id', e.target.value)} className="input py-1 px-2 w-24 text-sm" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="number" step="0.01" value={row.yield_quantity} onChange={(e) => handleCellChange(idx, 'yield_quantity', e.target.value)} className="input py-1 px-2 w-20 text-sm focus:ring-1 focus:ring-primary" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="text" value={row.ingredient_id} onChange={(e) => handleCellChange(idx, 'ingredient_id', e.target.value)} className="input py-1 px-2 w-24 text-sm focus:ring-1 focus:ring-primary" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="number" step="0.01" value={row.quantity} onChange={(e) => handleCellChange(idx, 'quantity', e.target.value)} className="input py-1 px-2 w-20 text-sm focus:ring-1 focus:ring-primary" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="text" value={row.unit_id} onChange={(e) => handleCellChange(idx, 'unit_id', e.target.value)} className="input py-1 px-2 w-20 text-sm focus:ring-1 focus:ring-primary text-center" />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-5 border-t border-white/10 bg-[#0f172a] flex justify-between items-center">
+                            <button onClick={() => setStep(1)} className="btn hover:bg-white/5 text-textMuted flex items-center space-x-2">
+                                <FiArrowLeft /> <span>Back to Upload</span>
+                            </button>
+                            <button 
+                                onClick={handleConfirmImport}
+                                disabled={isProcessing}
+                                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold flex items-center space-x-2 transition-colors shadow-lg shadow-green-500/20"
+                            >
+                                {isProcessing ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                ) : (
+                                    <>
+                                        <FiCheck /> <span>Confirm & Import {previewData.length} Recipe Ingredients</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 };

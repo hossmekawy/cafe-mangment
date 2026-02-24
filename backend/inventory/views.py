@@ -8,14 +8,14 @@ from io import BytesIO
 from .models import (
     Unit, UnitConversion, StorageLocation, RawMaterial, StockBatch,
     WasteLog, StockMovement, PhysicalCount, PhysicalCountItem,
-    MenuCategory, Product, ProductVariation, ComboItem, Recipe, RecipeIngredient, Notification
+    MenuCategory, Product, ProductVariation, ComboItem, Recipe, RecipeIngredient, Notification, BatchProduction
 )
 from .serializers import (
     UnitSerializer, UnitConversionSerializer, StorageLocationSerializer, RawMaterialSerializer,
     RawMaterialListSerializer, StockBatchSerializer, StockMovementSerializer,
     WasteLogSerializer, PhysicalCountSerializer, PhysicalCountItemSerializer,
     MenuCategorySerializer, ProductVariationSerializer, ComboItemSerializer,
-    ProductSerializer, RecipeSerializer, RecipeIngredientSerializer, NotificationSerializer
+    ProductSerializer, RecipeSerializer, RecipeIngredientSerializer, NotificationSerializer, BatchProductionSerializer
 )
 from .services import deduct_stock_for_waste, log_stock_movement, reconcile_physical_count
 
@@ -504,6 +504,163 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Exception as e:
             return Response({"non_field_errors": [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def export_template(self, request):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Recipes Template"
+        headers = ["Target Type (Product/SubRecipe/Modifier/Variation)", "Target ID", "Yield Quantity", "Prep Time (Mins)", "Ingredient Type (Raw/SubRecipe)", "Ingredient ID", "Quantity", "Unit ID", "Is Optional"]
+        ws.append(headers)
+
+        ws_refs = wb.create_sheet("References")
+        ws_refs.append(["Type", "ID", "Name"])
+        for p in Product.objects.all(): ws_refs.append(["Product", str(p.id), p.name])
+        for r in RawMaterial.objects.filter(item_type='subrecipe'): ws_refs.append(["SubRecipe", str(r.id), r.name])
+        for r in RawMaterial.objects.all(): ws_refs.append(["Ingredient", str(r.id), r.name])
+        for u in Unit.objects.all(): ws_refs.append(["Unit", str(u.id), u.name])
+        
+        buffer = BytesIO()
+        wb.save(buffer)
+        response = HttpResponse(buffer.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="recipes_template.xlsx"'
+        return response
+
+    @action(detail=False, methods=['post'])
+    def preview_import(self, request):
+        file = request.FILES.get('file')
+        if not file: return Response({"detail": "No file"}, status=400)
+        try:
+            wb = openpyxl.load_workbook(file)
+            ws = wb.active
+            rows = []
+            for row_idx, r in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not r[0] or not r[1] or not r[5]: continue
+                rows.append({
+                    "id": row_idx,
+                    "target_type": r[0], "target_id": r[1],
+                    "yield_qty": float(r[2]) if r[2] else 1.0, "prep_time": int(r[3]) if r[3] else 5,
+                    "ingredient_id": r[5], "quantity": float(r[6]) if r[6] else 0,
+                    "unit_id": r[7], "is_optional": bool(r[8] if len(r)>8 else False)
+                })
+            return Response({"success": True, "data": rows})
+        except Exception as e:
+            return Response({"detail": str(e)}, status=400)
+
+    @action(detail=False, methods=['post'])
+    def confirm_import(self, request):
+        rows = request.data.get('recipes', [])
+        if not rows: return Response({"detail": "No rows to import"}, status=400)
+
+        # Group by target
+        recipes_map = {}
+        for r in rows:
+            key = f"{r['target_type']}_{r['target_id']}"
+            if key not in recipes_map:
+                recipes_map[key] = {
+                    "target_type": r['target_type'].lower(), "target_id": r['target_id'],
+                    "yield_qty": r['yield_qty'], "prep_time": r['prep_time'], "ingredients": []
+                }
+            recipes_map[key]['ingredients'].append({
+                "raw_material_id": r['ingredient_id'],
+                "quantity": r['quantity'], "unit_id": r['unit_id']
+            })
+
+        created = 0
+        errors = []
+        for key, rec_data in recipes_map.items():
+            try:
+                recipe = Recipe.objects.create(
+                    product_id=rec_data['target_id'] if rec_data['target_type'] == 'product' else None,
+                    raw_material_id=rec_data['target_id'] if rec_data['target_type'] == 'subrecipe' else None,
+                    yield_quantity=rec_data['yield_qty'],
+                    preparation_time=rec_data['prep_time']
+                )
+                for ing in rec_data['ingredients']:
+                    material = RawMaterial.objects.get(id=ing['raw_material_id'])
+                    unit_id = ing.get('unit_id')
+                    unit = Unit.objects.get(id=unit_id) if unit_id else material.unit
+                    RecipeIngredient.objects.create(
+                        recipe=recipe, raw_material=material, quantity=ing['quantity'], unit=unit
+                    )
+                created += 1
+            except Exception as e:
+                errors.append(f"Error on {key}: {str(e)}")
+
+        return Response({"success": True, "message": f"Created {created} recipes", "errors": errors})
+
+class BatchProductionViewSet(viewsets.ModelViewSet):
+    """Produces a batch of a sub-recipe, consuming its raw ingredients and increasing the sub-recipe stock"""
+    queryset = BatchProduction.objects.all().order_by('-created_at')
+    serializer_class = BatchProductionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        subrecipe_id = request.data.get('subrecipe')
+        yield_qty = float(request.data.get('yield_quantity', 0))
+        note = request.data.get('notes', '')
+
+        if not subrecipe_id or yield_qty <= 0:
+            return Response({"error": "Valid SubRecipe and positive yield_quantity are required."}, status=400)
+
+        try:
+            subrecipe_material = RawMaterial.objects.get(id=subrecipe_id, item_type='subrecipe')
+            recipe = subrecipe_material.recipes.first()
+            
+            if not recipe:
+                return Response({"error": "This subrecipe does not have an attached Recipe configuration."}, status=400)
+
+            # Calculate ratio based on recipe's standard yield vs requested yield
+            ratio = yield_qty / float(recipe.yield_quantity)
+            total_cost = 0
+
+            # 1. Deduct Ingredients
+            for ing in recipe.ingredients.all():
+                required_qty = float(ing.quantity) * ratio
+                
+                # Convert unit physically if not matching
+                if ing.unit != ing.raw_material.unit:
+                    try:
+                        conv = UnitConversion.objects.get(from_unit=ing.raw_material.unit, to_unit=ing.unit)
+                        actual_deduction = required_qty / float(conv.multiplier)
+                    except Exception:
+                        raise ValueError(f"Missing unit conversion for {ing.raw_material.name}")
+                else:
+                    actual_deduction = required_qty
+
+                log_stock_movement(
+                    raw_material=ing.raw_material,
+                    movement_type='consumption',
+                    quantity=-actual_deduction,
+                    performed_by=request.user,
+                    note=f"Consumed for Batch Production of {subrecipe_material.name} ({yield_qty} {subrecipe_material.unit.abbreviation})"
+                )
+                total_cost += float(ing.get_cost()) * ratio
+
+            # 2. Add SubRecipe Stock
+            log_stock_movement(
+                raw_material=subrecipe_material,
+                movement_type='manual_adjustment',
+                quantity=yield_qty,
+                performed_by=request.user,
+                note=f"Batch Produced ({yield_qty} {subrecipe_material.unit.abbreviation})"
+            )
+            subrecipe_material.cost_per_unit = total_cost / yield_qty
+            subrecipe_material.save()
+
+            # 3. Log Batch Production
+            batch = BatchProduction.objects.create(
+                subrecipe=subrecipe_material,
+                recipe_used=recipe,
+                yield_quantity=yield_qty,
+                total_cost=total_cost,
+                notes=note,
+                produced_by=request.user
+            )
+
+            return Response(self.get_serializer(batch).data, status=201)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
 class NotificationViewSet(viewsets.ModelViewSet):
     """Simple API to fetch low stock alerts"""

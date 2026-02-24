@@ -421,35 +421,38 @@ export const printCombined = ({
         ? kitchenHTML
         : `${kitchenHTML}<div class="print-cutter"></div>${receiptHTML}`;
 
-    // ── Inject into #pos-print-area on the page ───────────────────
-    let printArea = document.getElementById('pos-print-area');
-    if (!printArea) {
-        printArea = document.createElement('div');
-        printArea.id = 'pos-print-area';
-        document.body.appendChild(printArea);
+    // ── Inject into a hidden iframe to prevent main DOM thrashing ──
+    let iframe = document.getElementById('pos-print-iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'pos-print-iframe';
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
     }
 
-    // Inject scoped styles into head
-    let styleEl = document.getElementById('pos-print-styles');
-    if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'pos-print-styles';
-        document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = css;
-    printArea.innerHTML = content;
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html dir="${dir}">
+            <head>
+                <meta charset="utf-8">
+                <style>${css}</style>
+            </head>
+            <body>
+                ${content}
+            </body>
+        </html>
+    `);
+    doc.close();
 
-    // Small delay to allow any Google Fonts to load (for Arabic)
+    // Small delay to allow any Google Fonts and images to load
     setTimeout(() => {
-        window.print();
-    }, isArabic ? 500 : 100);
-
-    // Cleanup after the print dialog closes
-    const cleanup = () => {
-        printArea.innerHTML = '';
-        document.getElementById('pos-print-styles')?.remove();
-    };
-    window.addEventListener('afterprint', cleanup, { once: true });
-    // Fallback cleanup after 10s if afterprint doesn't fire
-    setTimeout(cleanup, 10000);
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    }, isArabic ? 600 : 200);
 };

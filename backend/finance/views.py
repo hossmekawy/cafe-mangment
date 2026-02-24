@@ -58,7 +58,7 @@ class CashShiftViewSet(viewsets.ModelViewSet):
         if not branch_id:
             return Response({'error': 'Branch is required to open a shift.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        from authentication.models import Branch
+        from authentication.models import Branch, CustomUser
         from django.core.exceptions import ValidationError
         try:
             branch = Branch.objects.get(id=branch_id)
@@ -78,6 +78,14 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             opening_cash=Decimal(str(opening_cash)),
         )
 
+        assigned_user_ids = request.data.get('assigned_users', [])
+        if isinstance(assigned_user_ids, list):
+            if len(assigned_user_ids) > 10:
+                shift.delete()
+                return Response({'error': 'Maximum 10 users can be assigned.'}, status=status.HTTP_400_BAD_REQUEST)
+            users_to_assign = CustomUser.objects.filter(id__in=assigned_user_ids)
+            shift.assigned_users.set(users_to_assign)
+
         for d in denominations:
             CashDenomination.objects.create(
                 shift=shift,
@@ -91,6 +99,9 @@ class CashShiftViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def close_shift(self, request, pk=None):
         """Close a shift with closing denomination counts and compute discrepancy."""
+        if request.user.role not in ['super_admin', 'manager']:
+            return Response({'error': 'Only managers or above can close shifts.'}, status=status.HTTP_403_FORBIDDEN)
+            
         shift = self.get_object()
         if shift.status == 'closed':
             return Response({'error': 'Shift is already closed.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -130,7 +141,11 @@ class CashShiftViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def current(self, request):
         """Get the current open shift for the requesting user."""
-        shift = CashShift.objects.filter(cashier=request.user, status='open').first()
+        from django.db.models import Q
+        shift = CashShift.objects.filter(
+            Q(cashier=request.user) | Q(assigned_users=request.user),
+            status='open'
+        ).distinct().first()
         if not shift:
             return Response({'detail': 'No open shift.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(CashShiftSerializer(shift).data)
@@ -177,6 +192,59 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             'total_discounts': float(total_discounts),
             'payment_breakdown': breakdown,
             'order_list': order_list,
+        })
+
+    @action(detail=True, methods=['post'])
+    def assign_user(self, request, pk=None):
+        """Add users to an ongoing collaborative shift."""
+        shift = self.get_object()
+        if shift.status == 'closed':
+            return Response({'error': 'Cannot assign users to closed shift.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user_ids = request.data.get('user_ids', [])
+        if not isinstance(user_ids, list):
+            return Response({'error': 'user_ids must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from authentication.models import CustomUser
+        current_count = shift.assigned_users.count()
+        if current_count + len(user_ids) > 10:
+            return Response({'error': 'Maximum 10 users per shift.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        users = CustomUser.objects.filter(id__in=user_ids)
+        shift.assigned_users.add(*users)
+        return Response({'detail': 'Users assigned successfully.'})
+
+    @action(detail=True, methods=['get'])
+    def shift_analytics(self, request, pk=None):
+        shift = self.get_object()
+        from pos.models import Order, OrderItem
+        from django.db.models import Sum, Count
+        from django.db.models.functions import TruncHour
+        
+        orders = Order.objects.filter(shift=shift, status='completed')
+        peak_time_qs = orders.annotate(hour=TruncHour('created_at')).values('hour').annotate(
+            order_count=Count('id'), volume=Sum('total_amount')
+        ).order_by('hour')
+        
+        items = OrderItem.objects.filter(order__shift=shift, order__status='completed')
+        best_sellers = items.values('product__name').annotate(
+            quantity_sold=Sum('quantity'), value=Sum('total_price')
+        ).order_by('-quantity_sold')[:5]
+        
+        txns = SalesTransaction.objects.filter(shift=shift, transaction_type='sale', is_voided=False)
+        user_contrib = txns.values('cashier__name').annotate(
+            contribution=Sum('net_amount')
+        ).order_by('-contribution')
+        
+        categories = items.values('product__category__name').annotate(
+            total_sales=Sum('total_price')
+        ).order_by('-total_sales')
+        
+        return Response({
+            'peak_time': list(peak_time_qs),
+            'best_sellers': list(best_sellers),
+            'user_contribution': list(user_contrib),
+            'category_breakdown': list(categories)
         })
 
 
@@ -238,6 +306,8 @@ class SalesTransactionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(net_amount__gte=Decimal(p['amount_min']))
         if p.get('amount_max'):
             qs = qs.filter(net_amount__lte=Decimal(p['amount_max']))
+        if p.get('shift'):
+            qs = qs.filter(shift=p['shift'])
         return qs
 
     @action(detail=True, methods=['post'])
@@ -344,10 +414,21 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             qs = qs.filter(date__gte=parse_date(p['date_from']))
         if p.get('date_to'):
             qs = qs.filter(date__lte=parse_date(p['date_to']))
+        if p.get('shift'):
+            qs = qs.filter(shift=p['shift'])
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        if self.request.user.role not in ['super_admin', 'manager']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only managers or above can create expenses.")
+            
+        branch = getattr(self.request.user, 'branch', None)
+        shift = None
+        if branch:
+            shift = CashShift.objects.filter(branch=branch, status='open').first()
+            
+        serializer.save(created_by=self.request.user, shift=shift)
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):

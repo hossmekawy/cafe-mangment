@@ -4,7 +4,7 @@ from .views import (
     UnitViewSet, UnitConversionViewSet, StorageLocationViewSet, RawMaterialViewSet,
     StockMovementViewSet, WasteLogViewSet, PhysicalCountViewSet,
     ProductViewSet, RecipeViewSet, NotificationViewSet,
-    MenuCategoryViewSet, ProductVariationViewSet, ComboItemViewSet
+    MenuCategoryViewSet, ProductVariationViewSet, ComboItemViewSet, BatchProductionViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,7 @@ router.register(r'product-variations', ProductVariationViewSet, basename='produc
 router.register(r'combo-items', ComboItemViewSet, basename='comboitem')
 router.register(r'recipes', RecipeViewSet)
 router.register(r'alerts', NotificationViewSet)
+router.register(r'batch-productions', BatchProductionViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

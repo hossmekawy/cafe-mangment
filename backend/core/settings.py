@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-(jezid9oc&nph7v9)n_6k!k1n*!+!1_z2=)3l+l%q+69!4&uob'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['167.86.71.246', '167.86.71.246.nip.io', 'localhost', '127.0.0.1']
 
@@ -31,10 +31,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://167.86.71.246",
     "http://167.86.71.246:4173",
     "http://167.86.71.246:5173",
+    "http://167.86.71.246:8081",
     "http://167.86.71.246.nip.io",
     "http://167.86.71.246.nip.io:4173",
     "http://167.86.71.246.nip.io:5173",
+    "http://167.86.71.246.nip.io:8081",
     "http://localhost:5173",
+    "http://localhost:8081",
 ]
 
 # Application definition
@@ -129,13 +132,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'ar-eg'
+
+TIME_ZONE = 'Africa/Cairo'
 
 USE_I18N = True
 
 USE_TZ = True
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -168,10 +173,18 @@ REST_FRAMEWORK = {
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = True # Change this in production
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://167.86.71.246',
+    'http://167.86.71.246:3000',
+    'http://167.86.71.246:8081',
+    'http://167.86.71.246.nip.io',
+    'http://167.86.71.246.nip.io:3000',
+]
+
 # Simple JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,

@@ -85,6 +85,19 @@ export const inventoryApi = {
     createRecipe: (data) => axiosInstance.post('/inventory/recipes/', data),
     updateRecipe: (id, data) => axiosInstance.put(`/inventory/recipes/${id}/`, data),
     deleteRecipe: (id) => axiosInstance.delete(`/inventory/recipes/${id}/`),
+    previewBulkRecipes: (data) => axiosInstance.post('/inventory/recipes/preview_import/', data, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    }),
+    confirmBulkRecipes: (data) => axiosInstance.post('/inventory/recipes/confirm_import/', { recipes: data }),
+    exportRecipesTemplate: () => axiosInstance.get('/inventory/recipes/export_template/', {
+        responseType: 'blob'
+    }),
+    
+    // Batch Productions
+    getBatchProductions: () => axiosInstance.get('/inventory/batch-productions/'),
+    createBatchProduction: (data) => axiosInstance.post('/inventory/batch-productions/', data),
     
     // Notifications
     getAlerts: () => axiosInstance.get('/inventory/alerts/'),

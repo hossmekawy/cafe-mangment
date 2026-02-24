@@ -171,6 +171,13 @@ const InventoryDashboard = () => {
                                 <span className="font-medium text-white">Start Physical Count</span>
                                 <FiPlus className="text-textMuted group-hover:text-primary transition-colors" />
                             </button>
+                            <button 
+                                onClick={() => navigate('/inventory/sub-recipes')}
+                                className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between group"
+                            >
+                                <span className="font-medium text-white">Manage Sub-Recipes</span>
+                                <FiPlus className="text-textMuted group-hover:text-primary transition-colors" />
+                            </button>
                         </div>
                     </div>
                 </div>

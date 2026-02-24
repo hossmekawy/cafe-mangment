@@ -10,6 +10,7 @@ import UserManagement from './pages/settings/UserManagement';
 import BranchManagement from './pages/settings/BranchManagement';
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
 import RawMaterials from './pages/inventory/RawMaterials';
+import SubRecipes from './pages/inventory/SubRecipes';
 import Units from './pages/inventory/Units';
 import UnitConversions from './pages/inventory/UnitConversions';
 import Categories from './pages/inventory/Categories';
@@ -40,6 +41,7 @@ import BankReconciliation from './pages/finance/BankReconciliation';
 import CorporateInvoices from './pages/finance/CorporateInvoices';
 import FinancialReports from './pages/finance/FinancialReports';
 import EndOfDay from './pages/finance/EndOfDay';
+import ShiftManagement from './pages/finance/ShiftManagement';
 
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 
@@ -104,6 +106,7 @@ function App() {
               {/* Inventory & Purchasing */}
               <Route path="/inventory" element={<InventoryDashboard />} />
               <Route path="/inventory/materials" element={<RawMaterials />} />
+              <Route path="/inventory/sub-recipes" element={<SubRecipes />} />
               <Route path="/inventory/units" element={<Units />} />
               <Route path="/inventory/conversions" element={<UnitConversions />} />
               <Route path="/inventory/categories" element={<Categories />} />
@@ -124,6 +127,7 @@ function App() {
               <Route path="/finance/corporate-invoices" element={<CorporateInvoices />} />
               <Route path="/finance/reports" element={<FinancialReports />} />
               <Route path="/finance/end-of-day" element={<EndOfDay />} />
+              <Route path="/finance/shifts" element={<ShiftManagement />} />
 
               {/* Reports Engine */}
               <Route path="/reports" element={<ReportsDashboard />} />

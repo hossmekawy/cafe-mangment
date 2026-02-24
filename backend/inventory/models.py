@@ -38,12 +38,19 @@ class RawMaterial(models.Model):
         ('packaging', 'Packaging'),
         ('fresh_produce', 'Fresh Produce'),
         ('cleaning', 'Cleaning & Maintenance'),
+        ('sub_recipe', 'Sub-Recipe / Prepared Item'),
         ('other', 'Other'),
+    )
+
+    ITEM_TYPE_CHOICES = (
+        ('raw', 'Raw Material'),
+        ('subrecipe', 'Sub-Recipe'),
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     name_ar = models.CharField(max_length=150, blank=True, null=True)
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES, default='raw')
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
     unit = models.ForeignKey(Unit, on_delete=models.PROTECT)
     
@@ -250,16 +257,19 @@ class ComboItem(models.Model):
 
 class Recipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # A recipe can belong to a base product OR a specific variation (size/type) OR a generic Modifier
+    # A recipe can belong to a Product, Variation, Modifier, or a Sub-Recipe (RawMaterial)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipes', null=True, blank=True)
     variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
     modifier = models.ForeignKey('pos.Modifier', on_delete=models.CASCADE, related_name='recipe', null=True, blank=True)
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='recipes', null=True, blank=True, help_text="Used when this recipe makes a Sub-Recipe batch.")
     
     yield_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
     preparation_time = models.IntegerField(help_text="In minutes", default=5)
     notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
+        if self.raw_material:
+             return f"Recipe for Sub-Recipe: {self.raw_material.name}"
         if self.modifier:
              return f"Recipe for Modifier: {self.modifier.name}"
         if self.variation:
@@ -296,3 +306,19 @@ class Notification(models.Model):
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class BatchProduction(models.Model):
+    """Logs when a sub-recipe is produced, drawing raw materials and adding to sub-recipe stock"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subrecipe = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='batches_produced')
+    recipe_used = models.ForeignKey(Recipe, on_delete=models.SET_NULL, null=True, blank=True)
+    yield_quantity = models.DecimalField(max_digits=10, decimal_places=3, help_text="Amount of sub-recipe produced")
+    
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Sum of consumed ingredients cost")
+    
+    notes = models.TextField(blank=True, null=True)
+    produced_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Batch: {self.yield_quantity} {self.subrecipe.unit.abbreviation} of {self.subrecipe.name}"

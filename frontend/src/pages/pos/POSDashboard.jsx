@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { posApi } from '../../api/posApi';
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiSearch, FiX, FiCheck, FiCoffee, FiPlus, FiMinus, FiCreditCard, FiClock, FiLayers, FiUserCheck, FiGift, FiTrash2, FiEdit2 } from 'react-icons/fi';
+import { FiShoppingCart, FiSearch, FiX, FiCheck, FiCoffee, FiPlus, FiMinus, FiCreditCard, FiClock, FiLayers, FiUserCheck, FiGift, FiTrash2, FiEdit2, FiList, FiPrinter, FiEye } from 'react-icons/fi';
 import ConfirmModal from '../../components/ConfirmModal';
 import { customersApi } from '../../api/customersApi';
 import { authApi } from '../../api/authApi';
 import useSettingsStore from '../../store/settingsStore';
 import { printCombined } from './CombinedPrinter';
+import { format } from 'date-fns';
 
 const POSDashboard = () => {
     const { user } = useAuthStore();
@@ -60,6 +61,11 @@ const POSDashboard = () => {
     const [managerPin, setManagerPin] = useState('');
     const [isVerifyingPin, setIsVerifyingPin] = useState(false);
     
+    // Shift Orders Modal State
+    const [showShiftOrdersModal, setShowShiftOrdersModal] = useState(false);
+    const [shiftOrders, setShiftOrders] = useState([]);
+    const [isFetchingShiftOrders, setIsFetchingShiftOrders] = useState(false);
+    
     // No print state needed - printReceipt() opens its own window
 
     useEffect(() => {
@@ -75,7 +81,10 @@ const POSDashboard = () => {
             
             // Extract unique categories using category_name
             const cats = [...new Set(response.data.map(p => p.category_name || 'Uncategorized'))];
-            setCategories(['all', ...cats]);
+            setCategories(cats);
+            if (cats.length > 0) {
+                setActiveCategory(cats[0]);
+            }
         } catch (error) {
             toast.error("Failed to load products");
         } finally {
@@ -142,6 +151,40 @@ const POSDashboard = () => {
             setDraftOrders(res.data.filter(o => o.status === 'pending'));
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    const handleOpenShiftOrders = async () => {
+        setShowShiftOrdersModal(true);
+        setIsFetchingShiftOrders(true);
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const res = await posApi.getOrders({ date_from: today, date_to: today });
+            // Filter by current logged in user and skip drafts if needed
+            const myOrders = res.data.filter(o => o.assigned_waiter === user.id);
+            setShiftOrders(myOrders);
+        } catch (error) {
+            toast.error("Failed to load shift orders");
+        } finally {
+            setIsFetchingShiftOrders(false);
+        }
+    };
+
+    const handleReprintOrder = (order, type) => {
+        if (type === 'kitchen') {
+            printCombined({ order, cart: null, kitchenOnly: true });
+        } else {
+            printCombined({ 
+                order, 
+                cart: null, 
+                subtotal: parseFloat(order.subtotal || 0), 
+                taxInfo: parseFloat(order.tax_amount || 0), 
+                serviceCharge: parseFloat(order.service_charge || 0), 
+                discountInfo: parseFloat(order.discount_amount || 0), 
+                total: parseFloat(order.total_amount || 0), 
+                payments: order.payments || [], 
+                kitchenOnly: false 
+            });
         }
     };
 
@@ -312,7 +355,7 @@ const POSDashboard = () => {
 
     const filteredProducts = products.filter(p => {
         const catName = p.category_name || 'Uncategorized';
-        const matchesCat = activeCategory === 'all' || catName === activeCategory;
+        const matchesCat = catName === activeCategory;
         const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               (p.name_ar && p.name_ar.toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesCat && matchesSearch;
@@ -658,12 +701,12 @@ const POSDashboard = () => {
     }
 
     return (
-        <div className="h-full flex bg-background overflow-hidden">
+        <div className="h-full flex bg-background overflow-hidden relative">
             {/* LIFT SIDE: PRODUCT GRID */}
-            <div className="flex-1 flex flex-col h-full bg-surface rounded-tr-3xl">
-                <div className="p-6 pb-0 tracking-tight shrink-0">
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-black text-textMain">New Order</h1>
+            <div className="flex-1 min-w-0 flex flex-col h-full bg-surface rounded-tr-3xl">
+                <div className="p-4 pb-0 tracking-tight shrink-0">
+                    <div className="flex justify-between items-center mb-4">
+                        <h1 className="text-2xl font-black text-textMain">New Order</h1>
                         <div className="relative w-64">
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-textMuted w-5 h-5" />
                             <input 
@@ -671,7 +714,7 @@ const POSDashboard = () => {
                                 placeholder="Search products..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-background text-textMain rounded-full py-3 pl-12 pr-4 border border-slate-200 dark:border-white/10 dark:border-white/5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors focus:outline-none placeholder-textMuted"
+                                className="w-full bg-background text-textMain rounded-full py-2 pl-10 pr-4 border border-slate-200 dark:border-white/10 dark:border-white/5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors focus:outline-none placeholder-textMuted"
                             />
                         </div>
                     </div>
@@ -681,30 +724,30 @@ const POSDashboard = () => {
                             <button
                                 key={cat}
                                 onClick={() => setActiveCategory(cat)}
-                                className={`px-6 py-3 rounded-full font-bold whitespace-nowrap transition-all ${
+                                className={`px-4 py-2 text-sm rounded-full font-bold whitespace-nowrap transition-all ${
                                     activeCategory === cat 
                                     ? 'bg-primary text-gray-900 shadow-lg shadow-primary/30 scale-105' 
                                     : 'bg-background text-textMuted border border-slate-200 dark:border-white/10 dark:border-white/5 hover:border-slate-400 dark:hover:border-white/20'
                                 }`}
                             >
-                                {cat === 'all' ? 'All Items' : cat.toUpperCase()}
+                                {cat.toUpperCase()}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-full">
                             <p className="text-textMuted animate-pulse">Loading menu...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 content-start">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 content-start">
                             {filteredProducts.map(product => (
                                 <button
                                     key={product.id}
                                     onClick={() => handleProductClick(product)}
-                                    className="bg-background border border-slate-200 dark:border-white/10 dark:border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:bg-[#16213e] hover:border-primary/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all group relative overflow-hidden h-40"
+                                    className="bg-background border border-slate-200 dark:border-white/10 dark:border-white/5 rounded-lg p-2.5 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:bg-[#16213e] hover:border-primary/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all group relative overflow-hidden h-32"
                                 >
                                     {/* Indicators for Combos and Options */}
                                     <div className="absolute top-3 right-3 flex space-x-1">
@@ -713,9 +756,9 @@ const POSDashboard = () => {
                                     </div>
 
                                     {product.image ? (
-                                        <img src={product.image} alt={product.name} className="w-14 h-14 rounded-full object-cover mb-3 group-hover:scale-110 transition-transform opacity-90 border border-slate-200 dark:border-white/10" />
+                                        <img src={product.image} alt={product.name} className="w-10 h-10 rounded-full object-cover mb-2 group-hover:scale-110 transition-transform opacity-90 border border-slate-200 dark:border-white/10" />
                                     ) : (
-                                        <div className="w-12 h-12 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                        <div className="w-10 h-10 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                                             {product.combo_items?.length > 0 ? (
                                                 <FiLayers className="w-6 h-6 text-purple-400" />
                                             ) : (
@@ -751,12 +794,17 @@ const POSDashboard = () => {
             </div>
 
             {/* RIGHT SIDE: CART PANEL */}
-            <div className="w-96 bg-background h-full flex flex-col border-l border-slate-200 dark:border-white/10 dark:border-white/5 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] dark:shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 shrink-0">
-                <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0">
-                    <h2 className="text-xl font-black text-textMain flex items-center">
+            <div className="w-80 2xl:w-96 bg-background h-full flex flex-col border-l border-slate-200 dark:border-white/10 dark:border-white/5 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] dark:shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 shrink-0">
+                <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0">
+                    <h2 className="text-lg font-black text-textMain flex items-center">
                         <FiShoppingCart className="mr-3 text-primary" /> Current Order
                     </h2>
                     <div className="flex gap-2">
+                        {user?.role === 'cashier' && (
+                            <button onClick={handleOpenShiftOrders} className="text-xs font-bold text-blue-400 hover:text-blue-300 bg-blue-400/10 px-3 py-1.5 rounded-md transition-colors flex items-center">
+                               <FiList className="mr-1" /> My Shift
+                            </button>
+                        )}
                         <button onClick={() => { fetchDraftOrders(); setShowDraftsModal(true); }} className="text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 px-3 py-1.5 rounded-md transition-colors flex items-center">
                            <FiClock className="mr-1" /> Open Tables
                         </button>
@@ -765,12 +813,12 @@ const POSDashboard = () => {
                 </div>
 
                 {activeOrderId ? (
-                    <div className="px-6 py-3 bg-amber-500/20 text-amber-400 text-sm font-bold flex justify-between items-center border-b border-white/5 shrink-0">
+                    <div className="px-4 py-2.5 bg-amber-500/20 text-amber-400 text-sm font-bold flex justify-between items-center border-b border-white/5 shrink-0">
                         <span className="flex items-center gap-2"><FiClock className="animate-pulse" /> Paying Open Order</span>
                         <span className="font-mono bg-amber-500/20 px-2 rounded">#{activeOrderId.split('-')[0]}</span>
                     </div>
                 ) : (
-                    <div className="px-6 py-4 flex space-x-2 border-b border-white/5 bg-white/5 shrink-0">
+                    <div className="px-4 py-3 flex space-x-2 border-b border-white/5 bg-white/5 shrink-0">
                         {['dine_in', 'takeaway', 'delivery'].map(type => (
                             <button
                                 key={type}
@@ -791,7 +839,7 @@ const POSDashboard = () => {
                 )}
                 
                 {!activeOrderId && orderType === 'dine_in' && (
-                    <div className="px-6 py-3 border-b border-white/5 bg-yellow-500/5 shrink-0">
+                    <div className="px-4 py-2.5 border-b border-white/5 bg-yellow-500/5 shrink-0">
                         <select 
                             value={selectedTable || ''} 
                             onChange={(e) => setSelectedTable(e.target.value)}
@@ -806,7 +854,7 @@ const POSDashboard = () => {
                 )}
                 
                 {/* Customer CRM Attachment Block */}
-                <div className="px-6 py-3 border-b border-white/5 bg-surface/50 shrink-0">
+                <div className="px-4 py-2.5 border-b border-white/5 bg-surface/50 shrink-0">
                     {!attachedCustomer ? (
                         <div className="flex gap-2">
                             <input 
@@ -859,9 +907,9 @@ const POSDashboard = () => {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
+                <div className="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-2">
                     {cart.map((item, index) => (
-                        <div key={item.id} className="bg-surface/50 border border-slate-200 dark:border-white/10 dark:border-white/5 rounded-xl p-3 flex group relative overflow-hidden transition-colors hover:bg-surface">
+                        <div key={item.id} className="bg-surface/50 border border-slate-200 dark:border-white/10 dark:border-white/5 rounded-lg p-2.5 flex group relative overflow-hidden transition-colors hover:bg-surface">
                             <div className="flex-1 pr-4">
                                 <div className="flex items-center space-x-2">
                                     <h4 className="font-bold text-textMain text-sm leading-snug">{item.product.name}</h4>
@@ -904,8 +952,8 @@ const POSDashboard = () => {
                     )}
                 </div>
 
-                <div className="bg-surface border-t border-slate-200 dark:border-white/10 p-6 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.3)] z-20 shrink-0">
-                    <div className="space-y-2 mb-4 text-sm">
+                <div className="bg-surface border-t border-slate-200 dark:border-white/10 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.3)] z-20 shrink-0">
+                    <div className="space-y-1 mb-3 text-sm">
                         <div className="flex justify-between text-textMuted">
                             <span>Subtotal</span>
                             <span className="font-mono">{settings?.currency || '$'}{subtotal.toFixed(2)}</span>
@@ -932,7 +980,7 @@ const POSDashboard = () => {
                                 <span className="font-mono">-{settings?.currency || '$'}{manualDiscount.toFixed(2)}</span>
                             </div>
                         )}
-                        <div className="flex justify-between text-textMain font-black text-xl pt-2 border-t border-slate-200 dark:border-white/10">
+                        <div className="flex justify-between text-textMain font-black text-lg pt-1.5 border-t border-slate-200 dark:border-white/10">
                             <span>Total</span>
                             <span className="text-primary font-mono">{settings?.currency || '$'}{total.toFixed(2)}</span>
                         </div>
@@ -944,7 +992,7 @@ const POSDashboard = () => {
                             <button 
                                 onClick={handleSendToKitchen}
                                 disabled={cart.length === 0 || orderType !== 'dine_in' || (orderType === 'dine_in' && !selectedTable)}
-                                className="w-1/4 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-1/4 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-2.5 rounded-lg shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <FiClock className="w-4 h-4 text-amber-400" />
                                 <span className="text-[10px] uppercase">Hold</span>
@@ -954,7 +1002,7 @@ const POSDashboard = () => {
                         <button 
                             onClick={() => setShowPinModal(true)}
                             disabled={cart.length === 0 && !activeOrderId}
-                            className={`${activeOrderId ? 'w-1/3' : 'w-1/4'} bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                            className={`${activeOrderId ? 'w-1/3' : 'w-1/4'} bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-textMain font-bold py-2.5 rounded-lg shadow-lg border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center space-y-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             <FiMinus className="w-4 h-4 text-primary" />
                             <span className="text-[10px] uppercase">Discount</span>
@@ -963,7 +1011,7 @@ const POSDashboard = () => {
                         <button 
                             onClick={handleCheckout}
                             disabled={(cart.length === 0 && !activeOrderId) || (orderType === 'dine_in' && !selectedTable && !activeOrderId)}
-                            className={`flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-lg py-3 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform active:scale-[0.98] flex flex-col items-center justify-center space-y-0.5`}
+                            className={`flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-lg py-2.5 rounded-lg shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform active:scale-[0.98] flex flex-col items-center justify-center space-y-0.5`}
                         >
                             <div className="flex items-center space-x-2">
                                 <FiCheck className="w-5 h-5" />
@@ -981,7 +1029,7 @@ const POSDashboard = () => {
                     <div className="relative bg-surface w-full max-w-lg rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-fade-in-up">
                         <div className="p-5 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-background rounded-t-2xl shrink-0">
                             <div>
-                                <h3 className="text-xl font-black text-textMain">Customize Order</h3>
+                                <h3 className="text-lg font-black text-textMain">Customize Order</h3>
                                 <p className="text-primary font-bold mt-1 text-sm">{selectedProductForMod.name}</p>
                             </div>
                             <button onClick={() => setModifierModalOpen(false)} className="text-textMuted hover:text-textMain bg-slate-200 dark:bg-white/5 p-2 rounded-lg transition-colors"><FiX /></button>
@@ -1156,7 +1204,7 @@ const POSDashboard = () => {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddCustomerModal(false)}></div>
                     <div className="relative bg-surface w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-fade-in-up">
                         <div className="p-5 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-background rounded-t-2xl shrink-0">
-                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                            <h3 className="text-lg font-black text-textMain flex items-center gap-2">
                                 <FiUserCheck className="text-blue-400" /> New Customer
                             </h3>
                             <button onClick={() => setShowAddCustomerModal(false)} className="text-textMuted hover:text-textMain bg-slate-200 dark:bg-white/5 p-2 rounded-lg transition-colors"><FiX /></button>
@@ -1193,7 +1241,7 @@ const POSDashboard = () => {
                         <div className="p-5 border-t border-slate-200 dark:border-white/10 bg-background rounded-b-2xl">
                             <button 
                                 onClick={handleCreateCustomer}
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-all shadow-lg"
                             >
                                 Quick Add & Attach
                             </button>
@@ -1208,7 +1256,7 @@ const POSDashboard = () => {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDraftsModal(false)}></div>
                     <div className="relative bg-surface w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-fade-in-up">
                         <div className="p-5 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-background rounded-t-2xl shrink-0">
-                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                            <h3 className="text-lg font-black text-textMain flex items-center gap-2">
                                 <FiClock className="text-amber-400" /> Open Tables & Drafts
                             </h3>
                             <button onClick={() => setShowDraftsModal(false)} className="text-textMuted hover:text-textMain bg-slate-200 dark:bg-white/5 p-2 rounded-lg transition-colors"><FiX /></button>
@@ -1221,7 +1269,7 @@ const POSDashboard = () => {
                                     {draftOrders.map(order => (
                                         <div key={order.id} className="bg-surface rounded-xl border border-slate-200 dark:border-white/10 dark:border-white/5 p-5 hover:border-amber-400/50 transition-colors flex flex-col h-full relative overflow-hidden">
                                             <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-                                            <div className="flex justify-between items-start mb-3">
+                                            <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <h4 className="font-bold text-textMain text-lg">
                                                         {order.table ? `Table ${order.table_number}` : `Draft #${order.id.split('-')[0]}`}
@@ -1234,7 +1282,7 @@ const POSDashboard = () => {
                                             </div>
                                             
                                             {order.customer_name && (
-                                                <div className="text-xs text-textMuted mb-3 flex items-center gap-1">
+                                                <div className="text-xs text-textMuted mb-2 flex items-center gap-1">
                                                     <FiUserCheck /> {order.customer_name} ({order.customer_phone})
                                                 </div>
                                             )}
@@ -1282,7 +1330,7 @@ const POSDashboard = () => {
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowPinModal(false)}></div>
                     <div className="relative bg-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-white/10 shadow-3xl animate-fade-in-up">
                         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
-                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                            <h3 className="text-lg font-black text-textMain flex items-center gap-2">
                                 Manager Auth
                             </h3>
                             <button onClick={() => setShowPinModal(false)} className="text-textMuted hover:text-textMain"><FiX /></button>
@@ -1294,7 +1342,7 @@ const POSDashboard = () => {
                                 autoFocus
                                 value={managerPin}
                                 onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))}
-                                className="w-full bg-background border border-slate-200 dark:border-white/10 text-center text-textMain text-3xl tracking-[0.5em] p-4 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner mb-6 font-mono"
+                                className="w-full bg-background border border-slate-200 dark:border-white/10 text-center text-textMain text-2xl tracking-[0.5em] p-4 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner mb-6 font-mono"
                                 maxLength={6}
                                 placeholder="----"
                             />
@@ -1316,7 +1364,7 @@ const POSDashboard = () => {
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDiscountModal(false)}></div>
                     <div className="relative bg-surface w-full max-w-sm rounded-2xl border border-slate-200 dark:border-white/10 shadow-3xl animate-fade-in-up">
                         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
-                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                            <h3 className="text-lg font-black text-textMain flex items-center gap-2">
                                 <FiMinus className="text-primary" /> Apply Custom Discount
                             </h3>
                             <button onClick={() => setShowDiscountModal(false)} className="text-textMuted hover:text-textMain"><FiX /></button>
@@ -1340,17 +1388,99 @@ const POSDashboard = () => {
                             <div className="flex gap-3">
                                 <button 
                                     onClick={() => { setManualDiscountRaw(''); setShowDiscountModal(false); }}
-                                    className="flex-1 bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-textMain font-bold py-3 rounded-xl transition-colors"
+                                    className="flex-1 bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-textMain font-bold py-2.5 rounded-lg transition-colors"
                                 >
                                     Remove
                                 </button>
                                 <button 
                                     onClick={handleApplyManualDiscount}
-                                    className="flex-[2] bg-primary hover:bg-primary/90 text-white font-black py-3 rounded-xl shadow-lg transition-transform active:scale-[0.98]"
+                                    className="flex-[2] bg-primary hover:bg-primary/90 text-white font-black py-2.5 rounded-lg shadow-lg transition-transform active:scale-[0.98]"
                                 >
                                     Apply
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MY SHIFT ORDERS MODAL */}
+            {showShiftOrdersModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowShiftOrdersModal(false)}></div>
+                    <div className="relative bg-surface w-full max-w-5xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-3xl flex flex-col max-h-[90vh] animate-fade-in-up">
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl shrink-0">
+                            <h3 className="text-xl font-black text-textMain flex items-center gap-2">
+                                <FiList className="text-blue-400" /> My Shift Orders
+                            </h3>
+                            <button onClick={() => setShowShiftOrdersModal(false)} className="text-textMuted hover:text-textMain"><FiX /></button>
+                        </div>
+                        <div className="overflow-y-auto p-4 custom-scrollbar flex-1">
+                            {isFetchingShiftOrders ? (
+                                <div className="py-20 text-center text-textMuted animate-pulse">Loading shift orders...</div>
+                            ) : shiftOrders.length === 0 ? (
+                                <div className="py-20 text-center text-textMuted">No orders recorded in this shift yet.</div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-textMuted">
+                                                <th className="p-3 font-semibold">Order #</th>
+                                                <th className="p-3 font-semibold">Date</th>
+                                                <th className="p-3 font-semibold">Type</th>
+                                                <th className="p-3 font-semibold">Customer</th>
+                                                <th className="p-3 font-semibold">Items</th>
+                                                <th className="p-3 font-semibold">Total</th>
+                                                <th className="p-3 font-semibold">Status</th>
+                                                <th className="p-3 font-semibold text-center">Paid</th>
+                                                <th className="p-3 font-semibold text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {shiftOrders.map(order => (
+                                                <tr key={order.id} className="hover:bg-white/5 transition-colors">
+                                                    <td className="p-3 font-mono font-bold">{order.order_number}</td>
+                                                    <td className="p-3 text-textMuted">{format(new Date(order.created_at), 'hh:mm a')}</td>
+                                                    <td className="p-3 capitalize">{order.order_type.replace('_', ' ')}</td>
+                                                    <td className="p-3">{order.customer_name || '-'}</td>
+                                                    <td className="p-3">{order.items?.length || 0} items</td>
+                                                    <td className="p-3 font-mono text-primary font-bold">{settings?.currency || '$'}{parseFloat(order.total_amount).toFixed(2)}</td>
+                                                    <td className="p-3">
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                            order.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                                            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                                                            'bg-amber-500/20 text-amber-400'
+                                                        }`}>
+                                                            {order.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        {order.is_paid ? <FiCheck className="text-green-400 inline" /> : <FiX className="text-red-400 inline" />}
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button 
+                                                                onClick={() => handleReprintOrder(order, 'kitchen')}
+                                                                className="p-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 rounded text-textMain"
+                                                                title="Print Kitchen Ticket"
+                                                            >
+                                                                <FiCoffee className="w-4 h-4" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleReprintOrder(order, 'receipt')}
+                                                                className="p-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 rounded text-textMain"
+                                                                title="Print Client Receipt"
+                                                            >
+                                                                <FiPrinter className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

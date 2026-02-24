@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Unit, UnitConversion, StorageLocation, RawMaterial, StockBatch,
     StockMovement, WasteLog, PhysicalCountItem, PhysicalCount,
-    MenuCategory, Product, ProductVariation, ComboItem, Recipe, RecipeIngredient, Notification
+    MenuCategory, Product, ProductVariation, ComboItem, Recipe, RecipeIngredient, Notification, BatchProduction
 )
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -131,6 +131,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     ingredients = RecipeIngredientSerializer(many=True, read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     variation_name = serializers.CharField(source='variation.size_name', read_only=True)
+    raw_material_name = serializers.CharField(source='raw_material.name', read_only=True)
     target_name = serializers.SerializerMethodField()
     total_cost = serializers.SerializerMethodField()
     
@@ -139,6 +140,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_target_name(self, obj):
+        if obj.raw_material:
+            return f"Sub-Recipe: {obj.raw_material.name}"
         if obj.modifier:
             return f"Modifier: {obj.modifier.name}"
         if obj.variation:
@@ -151,4 +154,12 @@ class RecipeSerializer(serializers.ModelSerializer):
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
+        fields = '__all__'
+
+class BatchProductionSerializer(serializers.ModelSerializer):
+    subrecipe_name = serializers.CharField(source='subrecipe.name', read_only=True)
+    produced_by_name = serializers.CharField(source='produced_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = BatchProduction
         fields = '__all__'

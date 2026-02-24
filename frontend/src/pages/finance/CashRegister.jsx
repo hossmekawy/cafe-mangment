@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { FiPlay, FiSquare, FiDownload, FiDollarSign, FiClock, FiActivity, FiCheckCircle } from 'react-icons/fi';
 import { financeApi } from '../../api/financeApi';
+import { authApi } from '../../api/authApi';
 import useAuthStore from '../../store/authStore';
 import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -29,9 +30,34 @@ export default function CashRegister() {
     // Discrepancy Reason for Closing
     const [closingReason, setClosingReason] = useState('');
 
+    // Collaborative Users
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+
     useEffect(() => {
         fetchCurrentShift();
+        fetchUsers();
     }, []);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await authApi.getUsers();
+            if (res.data) setAvailableUsers(res.data.filter(u => u.id !== user?.id && u.is_active));
+        } catch (e) {
+            console.error("Failed to fetch users (might be restricted).");
+        }
+    };
+
+    const toggleUserSelection = (userId) => {
+        setSelectedUserIds(prev => {
+            if (prev.includes(userId)) return prev.filter(id => id !== userId);
+            if (prev.length >= 10) {
+                toast.error('Maximum 10 collaborative users allowed');
+                return prev;
+            }
+            return [...prev, userId];
+        });
+    };
 
     const fetchCurrentShift = async () => {
         setIsLoading(true);
@@ -87,7 +113,8 @@ export default function CashRegister() {
             branch: user?.branch || 1, // Fallback if user doesn't have strict branch
             denominations: DENOMINATIONS.map(d => ({
                 denomination: d, quantity: denominationsForm[d] || 0
-            })).filter(d => d.quantity > 0)
+            })).filter(d => d.quantity > 0),
+            assigned_users: selectedUserIds
         };
 
         setIsSubmitting(true);
@@ -97,6 +124,7 @@ export default function CashRegister() {
             toast.success(`Shift opened with ${total} EGP`, { id: tid });
             setCurrentShift(res.data);
             setDenominationsForm(DENOMINATIONS.reduce((acc, den) => ({ ...acc, [den]: 0 }), {}));
+            setSelectedUserIds([]);
         } catch (error) {
             toast.error(error.response?.data?.error || "Error opening shift", { id: tid });
         } finally {
@@ -245,6 +273,7 @@ export default function CashRegister() {
                     </div>
 
                     {/* Closing Form */}
+                    {['super_admin', 'manager'].includes(user?.role) ? (
                     <div className="glass-panel p-6 border border-red-500/20">
                         <h3 className="text-lg font-bold text-red-400 mb-4 flex items-center gap-2">
                             <FiSquare /> 
@@ -289,6 +318,13 @@ export default function CashRegister() {
                             <FiSquare /> <span>Close Shift</span>
                         </button>
                     </div>
+                    ) : (
+                    <div className="glass-panel p-6 border border-white/10 flex flex-col items-center justify-center">
+                        <FiSquare className="w-10 h-10 text-textMuted mb-3" />
+                        <p className="text-white font-bold">Shift Closing Restricted</p>
+                        <p className="text-textMuted text-sm text-center mt-1">Only a Manager or Admin can close this shift.</p>
+                    </div>
+                    )}
                 </div>
 
                 {/* Cash Drop Modal */}
@@ -355,6 +391,25 @@ export default function CashRegister() {
                         </div>
                     ))}
                 </div>
+
+                {availableUsers.length > 0 && (
+                    <div className="mb-8">
+                        <label className="block text-sm font-bold text-white mb-3">Collaborative Cashiers (Max 10)</label>
+                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                            {availableUsers.map(u => (
+                                <label key={u.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedUserIds.includes(u.id) ? 'bg-primary/20 border-primary' : 'bg-black/20 border-white/5 hover:border-white/20'}`}>
+                                    <input 
+                                        type="checkbox" 
+                                        className="checkbox checkbox-primary checkbox-sm" 
+                                        checked={selectedUserIds.includes(u.id)} 
+                                        onChange={() => toggleUserSelection(u.id)} 
+                                    />
+                                    <span className="text-sm font-medium text-white select-none truncate">{u.name} <span className="text-xs text-textMuted ml-1">({u.role})</span></span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 mb-8 text-center">
                     <p className="text-textMuted font-medium text-sm uppercase tracking-widest mb-1">Total Opening Cash</p>

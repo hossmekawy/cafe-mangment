@@ -92,13 +92,15 @@ class Order(models.Model):
         """Generate order number as ShiftNumber/SequentialOrder (e.g. 5/001)."""
         from finance.models import CashShift
         from datetime import date
+        from django.db.models import Q
 
         # Try to find the open shift for the waiter/cashier
         open_shift = None
         if self.assigned_waiter:
             open_shift = CashShift.objects.filter(
-                cashier=self.assigned_waiter, status='open'
-            ).first()
+                Q(cashier=self.assigned_waiter) | Q(assigned_users=self.assigned_waiter),
+                status='open'
+            ).distinct().first()
         
         if not open_shift:
             # Fallback: any open shift on the same branch as the waiter

@@ -17,6 +17,7 @@ class CashShift(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     shift_number = models.PositiveIntegerField(default=0, help_text="Auto-incrementing shift number per branch")
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cash_shifts')
+    assigned_users = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='active_shifts', blank=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='cash_shifts')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
 
@@ -224,6 +225,7 @@ class Expense(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shift = models.ForeignKey(CashShift, on_delete=models.SET_NULL, null=True, blank=True, related_name='shift_expenses')
     category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, related_name='expenses')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)

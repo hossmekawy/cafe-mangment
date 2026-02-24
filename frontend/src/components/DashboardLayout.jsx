@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useSettingsStore from '../store/settingsStore';
 import { 
@@ -13,6 +13,7 @@ const DashboardLayout = () => {
   const { user, logout, updateTheme } = useAuthStore();
   const { settings, fetchSettings } = useSettingsStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -102,7 +103,8 @@ const DashboardLayout = () => {
         { name: 'Corp. Invoices', path: '/finance/corporate-invoices', icon: FiFileText, hideFromCashier: true },
         { name: 'Bank Recon.', path: '/finance/bank-reconciliation', icon: FiCheckSquare, hideFromCashier: true },
         { name: 'Fin. Reports', path: '/finance/reports', icon: FiPieChart, hideFromCashier: true },
-        { name: 'EOD Review', path: '/finance/end-of-day', icon: FiClock, hideFromCashier: true }
+        { name: 'EOD Review', path: '/finance/end-of-day', icon: FiClock, hideFromCashier: true },
+        { name: 'Shift Mgt', path: '/finance/shifts', icon: FiActivity, hideFromCashier: true }
       ].filter(link => !link.hideFromCashier || isAdminOrManager)
     },
     { name: 'Customer CRM', path: '/customers', icon: FiUsers, show: true },
@@ -298,7 +300,9 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 flex flex-col overflow-x-hidden overflow-y-auto w-full p-4 sm:p-6 lg:p-8 relative">
+        <main className={`flex-1 flex flex-col overflow-x-hidden overflow-y-auto w-full relative ${
+          location.pathname.startsWith('/pos') ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
+        }`}>
           <Outlet />
         </main>
       </div>

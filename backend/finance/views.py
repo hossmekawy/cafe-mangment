@@ -70,12 +70,17 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             return Response({'error': 'You already have an open shift.'}, status=status.HTTP_400_BAD_REQUEST)
 
         denominations = request.data.get('denominations', [])
-        opening_cash = sum(d.get('denomination', 0) * d.get('quantity', 0) for d in denominations)
+        opening_cash_total = request.data.get('opening_cash')
+        
+        if opening_cash_total is not None:
+            opening_cash = Decimal(str(opening_cash_total))
+        else:
+            opening_cash = sum(Decimal(str(d.get('denomination', 0))) * d.get('quantity', 0) for d in denominations)
 
         shift = CashShift.objects.create(
             cashier=cashier,
             branch_id=branch_id,
-            opening_cash=Decimal(str(opening_cash)),
+            opening_cash=opening_cash,
         )
 
         assigned_user_ids = request.data.get('assigned_users', [])
@@ -107,7 +112,12 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Shift is already closed.'}, status=status.HTTP_400_BAD_REQUEST)
 
         denominations = request.data.get('denominations', [])
-        actual_closing = sum(d.get('denomination', 0) * d.get('quantity', 0) for d in denominations)
+        actual_closing_total = request.data.get('actual_closing_cash')
+        
+        if actual_closing_total not in [None, '']:
+            actual_closing = Decimal(str(actual_closing_total))
+        else:
+            actual_closing = sum(Decimal(str(d.get('denomination', 0))) * d.get('quantity', 0) for d in denominations)
 
         for d in denominations:
             CashDenomination.objects.create(
@@ -118,14 +128,19 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             )
 
         # Calculate expected from movements
-        cash_sales = shift.movements.filter(movement_type='sale').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
-        cash_refunds = shift.movements.filter(movement_type='refund').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        movements = shift.movements.all()
+        cash_sales = movements.filter(movement_type='sale').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        cash_refunds = movements.filter(movement_type='refund').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
         cash_drops_total = shift.cash_drops.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
-        petty_cash_out = shift.movements.filter(movement_type='petty_cash').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        petty_cash_out = movements.filter(movement_type='petty_cash').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        
+        # Consistent with live_expected_cash property
+        manual_in = movements.filter(movement_type='manual_in').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        manual_out = movements.filter(movement_type='manual_out').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
 
-        expected = shift.opening_cash + cash_sales - cash_refunds - cash_drops_total - petty_cash_out
+        expected = shift.opening_cash + cash_sales - cash_refunds - cash_drops_total - petty_cash_out + manual_in - manual_out
 
-        shift.actual_closing_cash = Decimal(str(actual_closing))
+        shift.actual_closing_cash = actual_closing
         shift.expected_closing_cash = expected
         shift.discrepancy = shift.actual_closing_cash - expected
         shift.discrepancy_reason = request.data.get('discrepancy_reason', '')

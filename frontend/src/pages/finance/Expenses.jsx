@@ -16,8 +16,11 @@ export default function Expenses() {
     const [summary, setSummary] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Form
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [newCategoryBudget, setNewCategoryBudget] = useState('');
+    const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         category: '',
@@ -68,6 +71,34 @@ export default function Expenses() {
         const reader = new FileReader();
         reader.onloadend = () => setFormData(prev => ({ ...prev, receipt_base64: reader.result }));
         reader.readAsDataURL(file);
+    };
+
+    const handleCreateCategory = async () => {
+        if (!newCategoryName.trim()) return toast.error("Category name is required");
+        setIsSubmittingCategory(true);
+        const tid = toast.loading("Creating category...");
+        try {
+            const payload = { 
+                name: newCategoryName, 
+                is_active: true,
+                budget: parseFloat(newCategoryBudget) || null
+            };
+            const res = await financeApi.createExpenseCategory(payload);
+            toast.success("Category created", { id: tid });
+            
+            // Add to list and select it
+            setCategories(prev => [...prev, res.data]);
+            setFormData(prev => ({ ...prev, category: res.data.id }));
+            
+            // Reset state
+            setIsAddingCategory(false);
+            setNewCategoryName('');
+            setNewCategoryBudget('');
+        } catch (error) {
+            toast.error("Failed to create category", { id: tid });
+        } finally {
+            setIsSubmittingCategory(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -244,11 +275,47 @@ export default function Expenses() {
                         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-textMuted mb-1">Category *</label>
-                                    <select required className="input w-full" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                                        <option value="">Select Category</option>
-                                        {categories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium text-textMuted">Category *</label>
+                                        {!isAddingCategory && (
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsAddingCategory(true)}
+                                                className="text-primary text-xs font-bold hover:underline"
+                                            >
+                                                + Add New
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {isAddingCategory ? (
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-2 space-y-2 animate-fade-in text-sm">
+                                            <input 
+                                                autoFocus
+                                                type="text" 
+                                                placeholder="Category Name" 
+                                                className="input w-full text-sm" 
+                                                value={newCategoryName} 
+                                                onChange={e => setNewCategoryName(e.target.value)} 
+                                            />
+                                            <input 
+                                                type="number" 
+                                                placeholder="Monthly Budget (Optional)" 
+                                                className="input w-full text-sm" 
+                                                value={newCategoryBudget} 
+                                                onChange={e => setNewCategoryBudget(e.target.value)} 
+                                            />
+                                            <div className="flex gap-2 justify-end pt-1">
+                                                <button type="button" onClick={() => setIsAddingCategory(false)} className="px-2 py-1 text-xs text-textMuted hover:text-white">Cancel</button>
+                                                <button type="button" onClick={handleCreateCategory} disabled={isSubmittingCategory} className="px-3 py-1 text-xs bg-primary hover:bg-primary/90 text-white font-bold rounded">Add</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <select required className="input w-full" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                                            <option value="">Select Category</option>
+                                            {categories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-textMuted mb-1">Date *</label>

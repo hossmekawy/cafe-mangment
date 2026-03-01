@@ -16,10 +16,7 @@ export default function CashRegister() {
     const [shiftSummary, setShiftSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Forms
-    const [denominationsForm, setDenominationsForm] = useState(
-        DENOMINATIONS.reduce((acc, den) => ({ ...acc, [den]: 0 }), {})
-    );
+    const [cashAmount, setCashAmount] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Cash Drop Modal
@@ -98,22 +95,17 @@ export default function CashRegister() {
         }
     };
 
-    const calculateTotal = () => {
-        return DENOMINATIONS.reduce((sum, den) => sum + (den * (denominationsForm[den] || 0)), 0);
-    };
-
     const handleDenomChange = (den, val) => {
-        const parsed = parseInt(val) || 0;
-        setDenominationsForm(prev => ({ ...prev, [den]: Math.max(0, parsed) }));
+        // No longer used, but keeping for safety if referenced elsewhere temporarily
     };
 
     const handleOpenShift = async () => {
-        const total = calculateTotal();
+        const total = parseFloat(cashAmount);
+        if (isNaN(total) || total < 0) return toast.error("Enter a valid opening amount (0 or more)");
+
         const payload = {
-            branch: user?.branch || 1, // Fallback if user doesn't have strict branch
-            denominations: DENOMINATIONS.map(d => ({
-                denomination: d, quantity: denominationsForm[d] || 0
-            })).filter(d => d.quantity > 0),
+            branch: user?.branch || 1,
+            opening_cash: total,
             assigned_users: selectedUserIds
         };
 
@@ -123,7 +115,7 @@ export default function CashRegister() {
             const res = await financeApi.openShift(payload);
             toast.success(`Shift opened with ${total} EGP`, { id: tid });
             setCurrentShift(res.data);
-            setDenominationsForm(DENOMINATIONS.reduce((acc, den) => ({ ...acc, [den]: 0 }), {}));
+            setCashAmount('');
             setSelectedUserIds([]);
         } catch (error) {
             toast.error(error.response?.data?.error || "Error opening shift", { id: tid });
@@ -133,22 +125,19 @@ export default function CashRegister() {
     };
 
     const handleCloseShift = async () => {
-        const total = calculateTotal();
+        const total = parseFloat(cashAmount) || 0;
         const tid = toast.loading("Closing shift...");
         try {
             const payload = {
-                denominations: DENOMINATIONS.map(d => ({
-                    denomination: d, quantity: denominationsForm[d] || 0
-                })).filter(d => d.quantity > 0),
+                actual_closing_cash: total,
                 discrepancy_reason: closingReason
             };
             const res = await financeApi.closeShift(currentShift.id, payload);
             toast.success("Shift closed successfully", { id: tid });
-            setCurrentShift(null); // Now closed, show open screen
-            setDenominationsForm(DENOMINATIONS.reduce((acc, den) => ({ ...acc, [den]: 0 }), {}));
+            setCurrentShift(null);
+            setCashAmount('');
             setClosingReason('');
             
-            // Optionally, we could show the EOD summary here
             if (res.data.discrepancy !== "0.00") {
                 toast(`Discrepancy recorded: ${res.data.discrepancy} EGP`, { icon: '⚠️' });
             }
@@ -198,7 +187,7 @@ export default function CashRegister() {
                 />
 
                 {/* Status Bar */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="glass-panel p-5 border-l-4 border-primary">
                         <p className="text-textMuted text-sm font-medium">Opening Cash</p>
                         <p className="text-2xl font-bold text-white mt-1">{formatMoney(currentShift.opening_cash)}</p>
@@ -212,6 +201,12 @@ export default function CashRegister() {
                         <p className="text-textMuted text-sm font-medium">Cash Drops</p>
                         <p className="text-2xl font-bold text-white mt-1">
                             {formatMoney(currentShift.total_cash_drops || movements.filter(m => m.movement_type === 'cash_drop').reduce((s, m) => s + parseFloat(m.amount), 0)*-1)}
+                        </p>
+                    </div>
+                    <div className="glass-panel p-5 border-l-4 border-yellow-500">
+                        <p className="text-textMuted text-sm font-medium">Expected Cash</p>
+                        <p className="text-2xl font-bold text-white mt-1">
+                            {formatMoney(currentShift.live_expected_cash || 0)}
                         </p>
                     </div>
                     <div className="glass-panel p-5 border-l-4 border-blue-500 flex flex-col justify-center gap-2">
@@ -279,28 +274,21 @@ export default function CashRegister() {
                             <FiSquare /> 
                             <span>Close Shift</span>
                         </h3>
-                        <p className="text-xs text-textMuted mb-6">Count your drawer to close the shift. Any discrepancy will be recorded.</p>
-                        
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                            {DENOMINATIONS.map(den => (
-                                <div key={den} className="flex items-center gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
-                                    <span className="text-xs font-bold text-white w-12">{den} L.E</span>
-                                    <span className="text-textMuted text-xs">x</span>
-                                    <input 
-                                        type="number" min="0" 
-                                        value={denominationsForm[den] || ''} 
-                                        onChange={(e) => handleDenomChange(den, e.target.value)}
-                                        className="input py-1 px-2 w-full text-right font-mono box-border" 
-                                    />
-                                </div>
-                            ))}
+                        <p className="text-xs text-textMuted mb-2">Count your drawer to close the shift. Any discrepancy will be recorded.</p>
+                        <div className="bg-black/30 p-3 rounded-lg border border-white/5 mb-6 text-center">
+                            <span className="text-[10px] uppercase tracking-wider text-textMuted block mb-1">Expected Cash</span>
+                            <span className="text-xl font-mono font-bold text-white">{parseFloat(currentShift.live_expected_cash || 0).toFixed(2)} EGP</span>
                         </div>
-
-                        <div className="bg-black/30 p-4 rounded-xl mb-6">
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-medium text-textMuted">Counted Cash</span>
-                                <span className="text-xl font-bold text-white font-mono">{formatMoney(calculateTotal())}</span>
-                            </div>
+                        
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-textMuted mb-2">Total Cash in Drawer (EGP)</label>
+                            <input 
+                                type="number" step="0.01"
+                                value={cashAmount} 
+                                onChange={(e) => setCashAmount(e.target.value)}
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-2xl font-bold text-white font-mono text-center focus:border-red-500/50 outline-none transition-colors"
+                                placeholder="0.00"
+                            />
                         </div>
 
                         <div className="mb-6">
@@ -376,20 +364,15 @@ export default function CashRegister() {
                     <p className="text-textMuted mt-2">Count your drawer to set the opening cash float.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                    {DENOMINATIONS.map(den => (
-                        <div key={den} className="flex items-center gap-3 bg-black/20 p-3 rounded-xl border border-white/5 transition-colors focus-within:border-primary/50">
-                            <span className="text-sm font-bold text-white w-14">{den} L.E</span>
-                            <span className="text-textMuted">x</span>
-                            <input 
-                                type="number" min="0" 
-                                value={denominationsForm[den] || ''} 
-                                onChange={(e) => handleDenomChange(den, e.target.value)}
-                                className="bg-transparent border-none text-right font-mono text-lg text-primary focus:ring-0 p-0 w-full outline-none" 
-                                placeholder="0"
-                            />
-                        </div>
-                    ))}
+                <div className="mb-8">
+                    <label className="block text-sm font-bold text-textMuted mb-2 text-center">Total Opening Cash (EGP)</label>
+                    <input 
+                        type="number" step="0.01"
+                        value={cashAmount} 
+                        onChange={(e) => setCashAmount(e.target.value)}
+                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-3xl font-bold text-primary font-mono text-center focus:border-primary/50 outline-none transition-colors"
+                        placeholder="0.00"
+                    />
                 </div>
 
                 {availableUsers.length > 0 && (
@@ -411,10 +394,6 @@ export default function CashRegister() {
                     </div>
                 )}
 
-                <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 mb-8 text-center">
-                    <p className="text-textMuted font-medium text-sm uppercase tracking-widest mb-1">Total Opening Cash</p>
-                    <p className="text-4xl font-black text-white font-mono">{formatMoney(calculateTotal())}</p>
-                </div>
 
                 <button 
                     onClick={handleOpenShift}

@@ -3,7 +3,7 @@ import { financeApi } from '../../api/financeApi';
 import { toast } from 'react-hot-toast';
 import PageHeader from '../../components/PageHeader';
 import DataTable from '../../components/DataTable';
-import { FiClock, FiActivity, FiPrinter, FiEye, FiArrowLeft, FiDollarSign, FiUsers } from 'react-icons/fi';
+import { FiClock, FiActivity, FiPrinter, FiEye, FiArrowLeft, FiDollarSign, FiUsers, FiEdit2, FiSquare, FiX } from 'react-icons/fi';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../store/authStore';
 
@@ -24,6 +24,13 @@ export default function ShiftManagement() {
     const [transactions, setTransactions] = useState([]);
     const [movements, setMovements] = useState([]);
     const [expenses, setExpenses] = useState([]);
+
+    // Management Actions
+    const [closingShift, setClosingShift] = useState(null);
+    const [editingShift, setEditingShift] = useState(null);
+    const [actualCash, setActualCash] = useState('');
+    const [editAmount, setEditAmount] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (!selectedShift) {
@@ -99,6 +106,37 @@ export default function ShiftManagement() {
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     };
 
+    const handleConfirmClose = async () => {
+        if (!actualCash) return toast.error("Please enter actual cash amount");
+        setIsSaving(true);
+        try {
+            await financeApi.closeShift(closingShift.id, { actual_closing_cash: parseFloat(actualCash) });
+            toast.success("Shift closed successfully");
+            setClosingShift(null);
+            setActualCash('');
+            fetchShifts();
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Failed to close shift");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleConfirmEdit = async () => {
+        if (!editAmount) return toast.error("Please enter opening cash amount");
+        setIsSaving(true);
+        try {
+            await financeApi.updateShift(editingShift.id, { opening_cash: editAmount });
+            toast.success("Shift updated successfully");
+            setEditingShift(null);
+            fetchShifts();
+        } catch (error) {
+            toast.error("Failed to update shift");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     if (selectedShift) {
         return (
             <div className="p-6 space-y-6 animate-fade-in relative">
@@ -114,11 +152,10 @@ export default function ShiftManagement() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="glass-panel p-5 border-l-4 border-primary">
-                        <p className="text-textMuted text-sm font-medium">Cashier(s)</p>
-                        <p className="text-lg font-bold text-white mt-1 truncate">
-                            {selectedShift.cashier_name}
-                            {selectedShift.assigned_users && selectedShift.assigned_users.length > 0 && ` + ${selectedShift.assigned_users.length}`}
+                    <div className="glass-panel p-5 border-l-4 border-indigo-500">
+                        <p className="text-textMuted text-sm font-medium">Staff Members</p>
+                        <p className="text-lg font-bold text-white mt-1 truncate" title={selectedShift.staff_names}>
+                            {selectedShift.staff_names}
                         </p>
                     </div>
                     <div className="glass-panel p-5 border-l-4 border-green-500">
@@ -127,11 +164,15 @@ export default function ShiftManagement() {
                             {selectedShift.status.toUpperCase()}
                         </p>
                     </div>
-                    <div className="glass-panel p-5 border-l-4 border-orange-500">
+                    <div className="glass-panel p-5 border-l-4 border-primary">
                         <p className="text-textMuted text-sm font-medium">Expected Closing</p>
-                        <p className="text-xl font-bold text-white mt-1">{parseFloat(selectedShift.expected_closing_cash || 0).toFixed(2)} EGP</p>
+                        <p className="text-xl font-bold text-white mt-1">{parseFloat(selectedShift.live_expected_cash || selectedShift.expected_closing_cash || 0).toFixed(2)} EGP</p>
                     </div>
                     <div className="glass-panel p-5 border-l-4 border-red-500">
+                        <p className="text-textMuted text-sm font-medium">Actual Closing</p>
+                        <p className="text-xl font-bold text-white mt-1">{parseFloat(selectedShift.actual_closing_cash || 0).toFixed(2)} EGP</p>
+                    </div>
+                    <div className="glass-panel p-5 border-l-4 border-purple-500">
                         <p className="text-textMuted text-sm font-medium">Discrepancy</p>
                         <p className={`text-xl font-bold mt-1 ${parseFloat(selectedShift.discrepancy || 0) < 0 ? 'text-red-400' : parseFloat(selectedShift.discrepancy || 0) > 0 ? 'text-green-400' : 'text-white'}`}>
                             {parseFloat(selectedShift.discrepancy || 0).toFixed(2)} EGP
@@ -263,7 +304,7 @@ export default function ShiftManagement() {
                     <h2>Daily Shift Summary</h2>
                     <h3>Shift #: {selectedShift.shift_number}</h3>
                     <hr />
-                    <div className="row"><span>Employee:</span> <span>{selectedShift.cashier_name}</span></div>
+                    <div className="row"><span>Employee:</span> <span className="flex items-center gap-1"><FiUsers /> {selectedShift.staff_names}</span></div>
                     <div className="row"><span>Date:</span> <span>{new Date(selectedShift.opened_at).toLocaleDateString()}</span></div>
                     <div className="row"><span>From:</span> <span>{new Date(selectedShift.opened_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
                     <div className="row"><span>To:</span> <span>{selectedShift.closed_at ? new Date(selectedShift.closed_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'In Progress'}</span></div>
@@ -332,11 +373,12 @@ export default function ShiftManagement() {
                     <div className="section-title">3. Cash Drawer Settlement</div>
                     {(() => {
                         const opening = parseFloat(selectedShift.opening_cash || 0);
-                        const cashCollected = transactions.reduce((s, t) => s + parseFloat(t.amount_collected || t.net_amount || 0), 0);
+                        const cashTransactions = transactions.filter(t => t.payment_method === 'cash');
+                        const cashCollected = cashTransactions.reduce((s, t) => s + parseFloat(t.net_amount || 0), 0);
                         const totalExp = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-                        const expected = parseFloat(selectedShift.expected_closing_cash || (opening + cashCollected - totalExp));
+                        const expected = parseFloat(selectedShift.live_expected_cash || selectedShift.expected_closing_cash || (opening + cashCollected - totalExp));
                         const actual = parseFloat(selectedShift.actual_closing_cash || 0);
-                        const diff = actual - expected;
+                        const diff = (selectedShift.status === 'closed') ? parseFloat(selectedShift.discrepancy || 0) : (actual - expected);
                         return (
                             <>
                                 <div className="row"><span>Opening Balance:</span> <span>{opening.toFixed(2)} EGP</span></div>
@@ -372,7 +414,12 @@ export default function ShiftManagement() {
             accessorFn: row => new Date(row.opened_at).toLocaleDateString(),
             id: 'date'
         },
-        { header: "Host Cashier", accessorKey: "cashier_name" },
+        { 
+            header: "Staff Members", 
+            accessorFn: row => row.staff_names || row.cashier_name || '---',
+            id: 'staff_members',
+            cell: ({ getValue }) => getValue()
+        },
         { 
             header: "Status", 
             accessorKey: "status",
@@ -387,16 +434,34 @@ export default function ShiftManagement() {
         },
         { 
             header: "Expected", 
-            accessorKey: "expected_closing_cash",
+            accessorFn: row => row.live_expected_cash || row.expected_closing_cash || 0,
+            id: 'expected',
+            cell: ({ getValue }) => `${parseFloat(getValue()).toFixed(2)} L.E`
+        },
+        { 
+            header: "Actual", 
+            accessorKey: "actual_closing_cash",
             cell: ({ getValue }) => `${parseFloat(getValue() || 0).toFixed(2)} L.E`
         },
         { 
             header: "Actions", 
             id: 'actions',
             cell: ({ row }) => (
-                <button onClick={(e) => { e.stopPropagation(); handleViewDetails(row.original); }} className="text-primary hover:text-white transition-colors p-2 text-lg">
-                    <FiEye />
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={(e) => { e.stopPropagation(); handleViewDetails(row.original); }} className="text-primary hover:text-white transition-colors p-2 text-lg" title="View Details">
+                        <FiEye />
+                    </button>
+                    {row.original.status === 'open' && (
+                        <button onClick={(e) => { e.stopPropagation(); setClosingShift(row.original); setActualCash(''); }} className="text-red-400 hover:text-red-300 transition-colors p-2 text-lg" title="Close Shift">
+                            <FiSquare />
+                        </button>
+                    )}
+                    {(user?.role === 'super_admin' || user?.role === 'manager') && (
+                        <button onClick={(e) => { e.stopPropagation(); setEditingShift(row.original); setEditAmount(row.original.opening_cash); }} className="text-amber-400 hover:text-amber-300 transition-colors p-2 text-lg" title="Edit Shift">
+                            <FiEdit2 />
+                        </button>
+                    )}
+                </div>
             )
         }
     ];
@@ -426,6 +491,68 @@ export default function ShiftManagement() {
             <div className="glass-panel p-6">
                 <DataTable columns={columns} data={shifts} isLoading={isLoading} emptyMessage="No shifts found." />
             </div>
+
+            {/* Close Shift Modal */}
+            {closingShift && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-surface rounded-2xl w-full max-w-sm border border-white/10 overflow-hidden shadow-2xl animate-fade-in-up">
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
+                            <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                                <FiSquare className="text-red-400" /> Close Shift #{closingShift.shift_number}
+                            </h3>
+                            <button onClick={() => setClosingShift(null)} className="text-textMuted hover:text-textMain transition-colors"><FiX /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-textMuted mb-2">Actual Cash in Drawer (EGP)</label>
+                                <input 
+                                    type="number" step="0.01" value={actualCash} onChange={e => setActualCash(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-2xl font-bold text-white font-mono text-center focus:border-red-500/50 outline-none transition-colors" autoFocus
+                                    placeholder="0.00"
+                                />
+                                <p className="text-[10px] text-textMuted mt-2 text-center">Expected: {parseFloat(closingShift.live_expected_cash || 0).toFixed(2)} EGP</p>
+                            </div>
+                        </div>
+                        <div className="p-5 border-t border-white/10 bg-background flex justify-end gap-3">
+                            <button onClick={() => setClosingShift(null)} className="px-4 py-2 rounded-lg text-textMuted hover:bg-white/5 font-medium transition-colors">Cancel</button>
+                            <button onClick={handleConfirmClose} disabled={isSaving} className="px-6 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold shadow-lg shadow-red-500/20 transition-colors disabled:opacity-50">
+                                {isSaving ? "Closing..." : "Close Shift"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Shift Modal */}
+            {editingShift && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-surface rounded-2xl w-full max-w-sm border border-white/10 overflow-hidden shadow-2xl animate-fade-in-up">
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-background rounded-t-2xl">
+                            <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                                <FiEdit2 className="text-amber-400" /> Edit Shift #{editingShift.shift_number}
+                            </h3>
+                            <button onClick={() => setEditingShift(null)} className="text-textMuted hover:text-textMain transition-colors"><FiX /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-textMuted mb-2">Opening Cash (EGP)</label>
+                                <input 
+                                    type="number" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-2xl font-bold text-primary font-mono text-center focus:border-primary/50 outline-none transition-colors"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-5 border-t border-white/10 bg-background flex justify-end gap-3">
+                            <button onClick={() => setEditingShift(null)} className="px-4 py-2 rounded-lg text-textMuted hover:bg-white/5 font-medium transition-colors">Cancel</button>
+                            <button onClick={handleConfirmEdit} disabled={isSaving} className="px-6 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/20 transition-colors disabled:opacity-50">
+                                {isSaving ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

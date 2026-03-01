@@ -53,6 +53,28 @@ class CashShift(models.Model):
         ]
         ordering = ['-opened_at']
 
+    @property
+    def live_expected_cash(self):
+        """Calculate real-time expected cash from movements."""
+        from django.db.models import Sum
+        from decimal import Decimal
+        
+        # If closed, return the stored expected value
+        if self.status == 'closed':
+            return self.expected_closing_cash
+            
+        movements = self.movements.all()
+        cash_sales = movements.filter(movement_type='sale').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        cash_refunds = movements.filter(movement_type='refund').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        cash_drops_total = self.cash_drops.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        petty_cash_out = movements.filter(movement_type='petty_cash').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        
+        # Also include manual in/out if they exist
+        manual_in = movements.filter(movement_type='manual_in').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        manual_out = movements.filter(movement_type='manual_out').aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+
+        return self.opening_cash + cash_sales - cash_refunds - cash_drops_total - petty_cash_out + manual_in - manual_out
+
     def save(self, *args, **kwargs):
         if not self.shift_number:
             last = CashShift.objects.filter(branch=self.branch).order_by('-shift_number').values_list('shift_number', flat=True).first()

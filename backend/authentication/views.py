@@ -149,6 +149,12 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
             password = serializer.validated_data.get('password')
             if password:
                 serializer.validated_data['password'] = make_password(password)
+            
+            # If admin is setting a new PIN, hash it
+            pin = serializer.validated_data.get('pin')
+            if pin:
+                serializer.validated_data['pin'] = make_password(pin)
+                
             self.perform_update(serializer)
             return Response({"success": True, "data": serializer.data, "message": "User updated successfully"})
         return Response({"success": False, "error": "VALIDATION_ERROR", "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

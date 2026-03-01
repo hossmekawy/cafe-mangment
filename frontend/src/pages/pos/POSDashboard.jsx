@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { posApi } from '../../api/posApi';
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
-import { FiShoppingCart, FiSearch, FiX, FiCheck, FiCoffee, FiPlus, FiMinus, FiCreditCard, FiClock, FiLayers, FiUserCheck, FiGift, FiTrash2, FiEdit2, FiList, FiPrinter, FiEye } from 'react-icons/fi';
+import { FiShoppingCart, FiSearch, FiX, FiCheck, FiCoffee, FiPlus, FiMinus, FiCreditCard, FiClock, FiLayers, FiUserCheck, FiGift, FiTrash2, FiEdit2, FiList, FiPrinter, FiEye, FiDollarSign, FiPlay } from 'react-icons/fi';
 import ConfirmModal from '../../components/ConfirmModal';
 import { customersApi } from '../../api/customersApi';
 import { authApi } from '../../api/authApi';
+import { financeApi } from '../../api/financeApi';
 import useSettingsStore from '../../store/settingsStore';
 import { printCombined } from './CombinedPrinter';
 import { format } from 'date-fns';
@@ -56,6 +57,7 @@ const POSDashboard = () => {
     
     // Manual Discounts & PIN Auth
     const [manualDiscountRaw, setManualDiscountRaw] = useState('');
+    const [manualDiscountType, setManualDiscountType] = useState('amount'); // 'amount' or 'percentage'
     const [showDiscountModal, setShowDiscountModal] = useState(false);
     const [showPinModal, setShowPinModal] = useState(false);
     const [managerPin, setManagerPin] = useState('');
@@ -68,10 +70,81 @@ const POSDashboard = () => {
     
     // No print state needed - printReceipt() opens its own window
 
+    // Shift State
+    const [hasOpenShift, setHasOpenShift] = useState(true);
+    const [showStartShiftModal, setShowStartShiftModal] = useState(false);
+    const [shiftOpeningCash, setShiftOpeningCash] = useState('');
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [isStartingShift, setIsStartingShift] = useState(false);
+
     useEffect(() => {
+        checkShiftStatus();
         fetchProducts();
         fetchTables();
     }, []);
+
+    const checkShiftStatus = async () => {
+        try {
+            await financeApi.getCurrentShift();
+            setHasOpenShift(true);
+            setShowStartShiftModal(false);
+        } catch (error) {
+            if (error.response?.status === 404) {
+                setHasOpenShift(false);
+                setShowStartShiftModal(true);
+                fetchCollaborativeUsers();
+            }
+        }
+    };
+
+    const fetchCollaborativeUsers = async () => {
+        try {
+            const res = await authApi.getUsers();
+            if (res.data) {
+                const others = res.data.filter(u => u.id !== user?.id && u.is_active);
+                setAvailableUsers(others);
+                const top10 = others.slice(0, 10).map(u => u.id);
+                setSelectedUserIds(top10);
+            }
+        } catch (e) {
+            console.error("Failed to fetch users");
+        }
+    };
+
+    const toggleUserSelection = (userId) => {
+        setSelectedUserIds(prev => {
+            if (prev.includes(userId)) return prev.filter(id => id !== userId);
+            if (prev.length >= 10) {
+                toast.error('Maximum 10 collaborative users allowed');
+                return prev;
+            }
+            return [...prev, userId];
+        });
+    };
+
+    const handleStartShift = async () => {
+        const total = parseFloat(shiftOpeningCash);
+        if (isNaN(total) || total < 0) return toast.error("Enter a valid opening amount (0 or more)");
+
+        const payload = {
+            branch: user?.branch || 1,
+            opening_cash: total,
+            assigned_users: selectedUserIds
+        };
+        setIsStartingShift(true);
+        const tid = toast.loading("Opening shift...");
+        try {
+            await financeApi.openShift(payload);
+            toast.success(`Shift opened!`, { id: tid });
+            setHasOpenShift(true);
+            setShowStartShiftModal(false);
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Error opening shift", { id: tid });
+        } finally {
+            setIsStartingShift(false);
+        }
+    };
 
     const fetchProducts = async () => {
         setIsLoading(true);
@@ -158,11 +231,8 @@ const POSDashboard = () => {
         setShowShiftOrdersModal(true);
         setIsFetchingShiftOrders(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const res = await posApi.getOrders({ date_from: today, date_to: today });
-            // Filter by current logged in user and skip drafts if needed
-            const myOrders = res.data.filter(o => o.assigned_waiter === user.id);
-            setShiftOrders(myOrders);
+            const res = await posApi.getOrders({ current_shift: true });
+            setShiftOrders(res.data);
         } catch (error) {
             toast.error("Failed to load shift orders");
         } finally {
@@ -200,6 +270,7 @@ const POSDashboard = () => {
         setCart([]);
         setPayments([]);
         setManualDiscountRaw(order.discount_amount || ''); // load saved discount if any
+        setManualDiscountType('amount');
         setPaymentAmountInput(order.total_amount);
         setSelectedPaymentMethod('cash');
         setShowDraftsModal(false);
@@ -243,6 +314,7 @@ const POSDashboard = () => {
             setPayments([]);
             setPaymentAmountInput('');
             setManualDiscountRaw(fullOrder.discount_amount || '');
+            setManualDiscountType('amount');
 
             if (fullOrder.customer) {
                 customersApi.getCustomer(fullOrder.customer)
@@ -387,7 +459,13 @@ const POSDashboard = () => {
     const loyaltyDiscount = pointsToRedeem ? (parseFloat(pointsToRedeem) * 0.5) : 0;
     
     // Manual Discount
-    const manualDiscount = parseFloat(manualDiscountRaw) || 0;
+    let manualDiscount = 0;
+    const rawVal = parseFloat(manualDiscountRaw) || 0;
+    if (manualDiscountType === 'percentage') {
+        manualDiscount = subtotal * (rawVal / 100);
+    } else {
+        manualDiscount = rawVal;
+    }
     
     const combinedDiscount = loyaltyDiscount + manualDiscount;
     
@@ -463,6 +541,8 @@ const POSDashboard = () => {
             setAttachedCustomer(null);
             setCustomerPhone('');
             setPointsToRedeem('');
+            setManualDiscountRaw('');
+            setManualDiscountType('amount');
             setActiveOrderId(null);
             setActiveOrderTotal(0);
             fetchTables();
@@ -566,6 +646,7 @@ const POSDashboard = () => {
             setCustomerPhone('');
             setPointsToRedeem('');
             setManualDiscountRaw('');
+            setManualDiscountType('amount');
             setCheckoutModalOpen(false);
             setActiveOrderId(null);
             setActiveOrderTotal(0);
@@ -597,12 +678,22 @@ const POSDashboard = () => {
             toast.error("Discount cannot be negative");
             return;
         }
-        if (disc > subtotal + estimatedTax) {
-            toast.error("Discount cannot exceed order total");
-            return;
+
+        if (manualDiscountType === 'percentage') {
+            if (disc > 100) {
+                toast.error("Percentage discount cannot exceed 100%");
+                return;
+            }
+        } else {
+            if (disc > subtotal + estimatedTax) {
+                toast.error("Discount cannot exceed order total");
+                return;
+            }
         }
+
         setShowDiscountModal(false);
-        toast.success(`Discount of ${settings?.currency || '$'}${disc.toFixed(2)} applied.`);
+        const displayVal = manualDiscountType === 'percentage' ? `${disc}%` : `${settings?.currency || '$'}${disc.toFixed(2)}`;
+        toast.success(`Discount of ${displayVal} applied.`);
     };
 
     const renderModifierContent = () => {
@@ -1375,7 +1466,32 @@ const POSDashboard = () => {
                                 <span className="font-mono text-textMain">{settings?.currency || '$'}{(subtotal + estimatedTax).toFixed(2)}</span>
                             </div>
                             
-                            <label className="block text-sm font-bold text-textMuted mb-2">Discount Amount ({settings?.currency || '$'})</label>
+                            <div className="flex gap-2 mb-6">
+                                <button
+                                    onClick={() => setManualDiscountType('amount')}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                                        manualDiscountType === 'amount'
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                        : 'bg-background text-textMuted border border-white/5 hover:bg-white/5'
+                                    }`}
+                                >
+                                    Fixed Amount
+                                </button>
+                                <button
+                                    onClick={() => setManualDiscountType('percentage')}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                                        manualDiscountType === 'percentage'
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                        : 'bg-background text-textMuted border border-white/5 hover:bg-white/5'
+                                    }`}
+                                >
+                                    Percentage (%)
+                                </button>
+                            </div>
+                            
+                            <label className="block text-sm font-bold text-textMuted mb-2">
+                                {manualDiscountType === 'amount' ? `Discount Amount (${settings?.currency || '$'})` : 'Discount Percentage (%)'}
+                            </label>
                             <input 
                                 type="number" 
                                 autoFocus
@@ -1427,6 +1543,7 @@ const POSDashboard = () => {
                                             <tr className="border-b border-white/10 text-textMuted">
                                                 <th className="p-3 font-semibold">Order #</th>
                                                 <th className="p-3 font-semibold">Date</th>
+                                                <th className="p-3 font-semibold">User</th>
                                                 <th className="p-3 font-semibold">Type</th>
                                                 <th className="p-3 font-semibold">Customer</th>
                                                 <th className="p-3 font-semibold">Items</th>
@@ -1441,6 +1558,7 @@ const POSDashboard = () => {
                                                 <tr key={order.id} className="hover:bg-white/5 transition-colors">
                                                     <td className="p-3 font-mono font-bold">{order.order_number}</td>
                                                     <td className="p-3 text-textMuted">{format(new Date(order.created_at), 'hh:mm a')}</td>
+                                                    <td className="p-3 font-bold text-blue-400">{order.waiter_name || 'System'}</td>
                                                     <td className="p-3 capitalize">{order.order_type.replace('_', ' ')}</td>
                                                     <td className="p-3">{order.customer_name || '-'}</td>
                                                     <td className="p-3">{order.items?.length || 0} items</td>
@@ -1482,6 +1600,60 @@ const POSDashboard = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Start Shift Modal */}
+            {showStartShiftModal && !hasOpenShift && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-xl glass-panel p-8 relative">
+                        <div className="text-center mb-8">
+                            <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/30">
+                                <FiDollarSign className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-2xl font-black text-white">Start New Shift</h2>
+                            <p className="text-textMuted mt-2">Count your drawer to set the opening cash float.</p>
+                        </div>
+
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-textMuted mb-2 text-center">Total Opening Cash (EGP)</label>
+                            <input 
+                                type="number" step="0.01"
+                                value={shiftOpeningCash} 
+                                onChange={(e) => setShiftOpeningCash(e.target.value)}
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 text-3xl font-bold text-primary font-mono text-center focus:border-primary/50 outline-none transition-colors"
+                                placeholder="0.00"
+                            />
+                        </div>
+
+                        {availableUsers.length > 0 && (
+                            <div className="mb-8">
+                                <label className="block text-sm font-bold text-white mb-3">Collaborative Cashiers (Max 10)</label>
+                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                                    {availableUsers.map(u => (
+                                        <label key={u.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedUserIds.includes(u.id) ? 'bg-primary/20 border-primary' : 'bg-black/20 border-white/5 hover:border-white/20'}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                className="checkbox checkbox-primary checkbox-sm" 
+                                                checked={selectedUserIds.includes(u.id)} 
+                                                onChange={() => toggleUserSelection(u.id)} 
+                                            />
+                                            <span className="text-sm font-medium text-white select-none truncate" title={u.name}>{u.name} <span className="text-xs text-textMuted ml-1">({u.role})</span></span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={handleStartShift}
+                            disabled={isStartingShift}
+                            className="w-full bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all flex justify-center items-center gap-2 text-lg disabled:opacity-50"
+                        >
+                            <FiPlay />
+                            <span>Open Shift & Start Selling</span>
+                        </button>
                     </div>
                 </div>
             )}

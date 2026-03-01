@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { FiPlus, FiBriefcase, FiFileText, FiSend, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiBriefcase, FiFileText, FiSend, FiDollarSign, FiCheckCircle, FiX } from 'react-icons/fi';
 import { financeApi } from '../../api/financeApi';
 import useAuthStore from '../../store/authStore';
 import DataTable from '../../components/DataTable';

@@ -7,6 +7,7 @@ export const financeApi = {
     getShiftSummary: (id) => axiosInstance.get(`/finance/shifts/${id}/summary/`),
     openShift: (data) => axiosInstance.post('/finance/shifts/open_shift/', data),
     closeShift: (id, data) => axiosInstance.post(`/finance/shifts/${id}/close_shift/`, data),
+    updateShift: (id, data) => axiosInstance.put(`/finance/shifts/${id}/`, data),
     approveShift: (id) => axiosInstance.post(`/finance/shifts/${id}/approve/`),
     getShiftAnalytics: (id) => axiosInstance.get(`/finance/shifts/${id}/shift_analytics/`),
     
@@ -22,6 +23,7 @@ export const financeApi = {
 
     // Expenses
     getExpenseCategories: () => axiosInstance.get('/finance/expense-categories/'),
+    createExpenseCategory: (data) => axiosInstance.post('/finance/expense-categories/', data),
     getExpenses: (params) => axiosInstance.get('/finance/expenses/', { params }),
     getExpenseSummary: () => axiosInstance.get('/finance/expenses/summary/'),
     createExpense: (data) => axiosInstance.post('/finance/expenses/', data),

@@ -94,7 +94,7 @@ class Order(models.Model):
         from datetime import date
         from django.db.models import Q
 
-        # Try to find the open shift for the waiter/cashier
+        # 1. Try to find shift for the assigned waiter (either as host or collaborator)
         open_shift = None
         if self.assigned_waiter:
             open_shift = CashShift.objects.filter(
@@ -102,23 +102,37 @@ class Order(models.Model):
                 status='open'
             ).distinct().first()
         
+        # 2. If not found, look for any open shift in the same branch
         if not open_shift:
-            # Fallback: any open shift on the same branch as the waiter
-            if self.assigned_waiter and hasattr(self.assigned_waiter, 'branch') and self.assigned_waiter.branch:
-                open_shift = CashShift.objects.filter(
-                    branch=self.assigned_waiter.branch, status='open'
-                ).first()
+            # Determine branch: from waiter, or from current context if we had one
+            # For robustness, we search for any open shift in the branch
+            branch_id = None
+            if self.assigned_waiter and hasattr(self.assigned_waiter, 'branch'):
+                branch_id = self.assigned_waiter.branch_id
+            
+            # If still no branch, just take the first open shift available (fallback)
+            if branch_id:
+                open_shift = CashShift.objects.filter(branch_id=branch_id, status='open').first()
+            else:
+                open_shift = CashShift.objects.filter(status='open').first()
 
         if open_shift:
             self.shift = open_shift
-            # Count existing orders in this shift
             order_seq = Order.objects.filter(shift=open_shift).count() + 1
-            self.order_number = f"{open_shift.shift_number}/{order_seq:03d}"
+            base_number = f"{open_shift.shift_number}/{order_seq:03d}"
         else:
-            # Fallback for when there is no open shift
             today = date.today()
             day_count = Order.objects.filter(created_at__date=today).count() + 1
-            self.order_number = f"0/{day_count:03d}"
+            base_number = f"0-{today.strftime('%y%m%d')}/{day_count:03d}"
+            
+        # Ensure uniqueness
+        final_number = base_number
+        counter = 1
+        while Order.objects.filter(order_number=final_number).exists():
+            final_number = f"{base_number}-{counter}"
+            counter += 1
+            
+        self.order_number = final_number
 
     def __str__(self):
         return f"{self.order_number}"

@@ -100,10 +100,35 @@ class OrderViewSet(viewsets.ModelViewSet):
             if parsed:
                 queryset = queryset.filter(created_at__date__lte=parsed)
 
+        # Current shift filter
+        is_current_shift = params.get('current_shift', '')
+        if is_current_shift.lower() == 'true':
+            from finance.models import CashShift
+            user = self.request.user
+            open_shift = CashShift.objects.filter(
+                Q(cashier=user) | Q(assigned_users=user),
+                status='open'
+            ).distinct().first()
+            
+            if not open_shift and hasattr(user, 'branch') and user.branch:
+                open_shift = CashShift.objects.filter(
+                    branch=user.branch, status='open'
+                ).first()
+
+            if open_shift:
+                queryset = queryset.filter(shift=open_shift)
+            else:
+                queryset = queryset.none()
+
         return queryset
         
     def perform_create(self, serializer):
-        serializer.save(assigned_waiter=self.request.user)
+        try:
+            serializer.save(assigned_waiter=self.request.user)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise e
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):

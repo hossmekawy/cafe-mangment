@@ -21,9 +21,20 @@ class CashDenominationSerializer(serializers.ModelSerializer):
 
 class CashShiftSerializer(serializers.ModelSerializer):
     denominations = CashDenominationSerializer(many=True, read_only=True)
-    cashier_name = serializers.CharField(source='cashier.get_full_name', read_only=True)
-    approved_by_name = serializers.CharField(source='approved_by.get_full_name', read_only=True)
+    cashier_name = serializers.CharField(source='cashier.name', read_only=True)
+    approved_by_name = serializers.CharField(source='approved_by.name', read_only=True)
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    live_expected_cash = serializers.SerializerMethodField()
+    staff_names = serializers.SerializerMethodField()
+
+    def get_live_expected_cash(self, obj):
+        return float(obj.live_expected_cash)
+
+    def get_staff_names(self, obj):
+        names = [obj.cashier.name] if obj.cashier else []
+        assigned = list(obj.assigned_users.values_list('name', flat=True))
+        all_names = names + [n for n in assigned if n not in names]
+        return " - ".join(all_names)
 
     class Meta:
         model = CashShift
